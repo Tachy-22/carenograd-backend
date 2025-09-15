@@ -1,0 +1,16 @@
+### Conversations API Calls
+@baseUrl = http://localhost:3000
+@jwtToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YjI3NmY2Zi1hYzJkLTQzZGItYTc3Ni1jZTk3NjYyOWQzZjEiLCJlbWFpbCI6ImVudGVrdW1lamVmZnJleUBnbWFpbC5jb20iLCJuYW1lIjoiSmVmZnJleSBFbnRla3VtZSIsImlhdCI6MTc1NzE4OTE2MywiZXhwIjoxNzU3Mjc1NTYzfQ.n_bYd9OMZ3ITCval67c9rp_8q5ioo9NJ0priXEMVcEo
+
+
+### 1. Get All User Conversations
+GET {{baseUrl}}/agent/conversations
+Authorization: Bearer {{jwtToken}}
+
+### 2. Get Messages from Specific Conversation (replace with actual conversation ID)
+GET {{baseUrl}}/agent/conversations/30a404fd-c658-42b6-ade5-2fce2a65fbe8/messages
+Authorization: Bearer {{jwtToken}}
+
+### 3. Get Messages from Conversation (example with UUID)
+GET {{baseUrl}}/agent/conversations/550e8400-e29b-41d4-a716-446655440000/messages
+Authorization: Bearer {{jwtToken}}

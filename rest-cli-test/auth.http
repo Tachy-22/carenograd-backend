@@ -1,0 +1,13 @@
+### Authentication API Calls
+@baseUrl = http://localhost:3000
+@jwtToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YjI3NmY2Zi1hYzJkLTQzZGItYTc3Ni1jZTk3NjYyOWQzZjEiLCJlbWFpbCI6ImVudGVrdW1lamVmZnJleUBnbWFpbC5jb20iLCJuYW1lIjoiSmVmZnJleSBFbnRla3VtZSIsImlhdCI6MTc1NzE1NjE1NCwiZXhwIjoxNzU3MjQyNTU0fQ.HsCezVKtheCmzsGNqygspDeu731m6IlILBhZCbELUr0
+### 1. Google OAuth Login (open in browser)
+GET {{baseUrl}}/auth/google
+
+### 2. Get User Profile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{jwtToken}}
+
+### 3. Refresh Google Token
+POST {{baseUrl}}/auth/refresh-google-token
+Authorization: Bearer {{jwtToken}}

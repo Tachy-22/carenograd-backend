@@ -1,0 +1,446 @@
+# Frontend FormData Upload Implementation Guide
+
+## Overview
+The backend now has a dedicated `/agent/upload` endpoint that accepts FormData file uploads. This eliminates the 33% base64 overhead and supports files up to 50MB.
+
+## API Endpoint Details
+
+**Endpoint**: `POST /agent/upload`
+**Content-Type**: `multipart/form-data` (automatically set by browser)
+**Authentication**: Bearer token required
+**File Field**: `file`
+**File Type**: PDF only
+**Max Size**: 50MB
+
+## Frontend Implementation
+
+### 1. Basic HTML
+```html
+<div class="upload-container">
+  <input type="file" id="fileInput" accept=".pdf" />
+  <button onclick="uploadDocument()">Upload Document</button>
+  <div id="uploadStatus"></div>
+  <div id="uploadProgress"></div>
+</div>
+```
+
+### 2. JavaScript Implementation
+```javascript
+async function uploadDocument() {
+  const fileInput = document.getElementById('fileInput');
+  const statusDiv = document.getElementById('uploadStatus');
+  const progressDiv = document.getElementById('uploadProgress');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    statusDiv.innerHTML = '❌ Please select a file';
+    return;
+  }
+
+  // Validate file type
+  if (file.type !== 'application/pdf') {
+    statusDiv.innerHTML = '❌ Only PDF files are supported';
+    return;
+  }
+
+  // Validate file size (50MB limit)
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  if (file.size > maxSize) {
+    statusDiv.innerHTML = '❌ File too large. Maximum size is 50MB';
+    return;
+  }
+
+  // Create FormData
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    statusDiv.innerHTML = '📤 Uploading...';
+    progressDiv.innerHTML = `File: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+
+    const response = await fetch('/agent/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`
+        // Don't set Content-Type - browser sets it automatically for FormData
+      },
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      statusDiv.innerHTML = '✅ Upload successful!';
+      progressDiv.innerHTML = `
+        <div><strong>Filename:</strong> ${result.filename}</div>
+        <div><strong>Size:</strong> ${(result.originalSize / 1024 / 1024).toFixed(1)} MB</div>
+        <div><strong>Conversation ID:</strong> ${result.conversationId}</div>
+        <div><strong>Agent Response:</strong> ${result.agentResponse}</div>
+      `;
+      
+      // Clear the file input
+      fileInput.value = '';
+      
+    } else {
+      statusDiv.innerHTML = `❌ Upload failed: ${result.message || 'Unknown error'}`;
+      progressDiv.innerHTML = '';
+    }
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    statusDiv.innerHTML = `❌ Upload error: ${error.message}`;
+    progressDiv.innerHTML = '';
+  }
+}
+
+// Optional: Add drag & drop support
+function setupDragDrop() {
+  const uploadContainer = document.querySelector('.upload-container');
+  
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    uploadContainer.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  uploadContainer.addEventListener('drop', handleDrop, false);
+
+  function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    
+    if (files.length > 0) {
+      document.getElementById('fileInput').files = files;
+      uploadDocument();
+    }
+  }
+}
+
+// Initialize drag & drop
+setupDragDrop();
+```
+
+### 3. React Implementation
+```jsx
+import React, { useState, useCallback } from 'react';
+
+function DocumentUploader() {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    setFile(selectedFile);
+    setResult(null);
+    setError(null);
+  };
+
+  const uploadDocument = useCallback(async () => {
+    if (!file) {
+      setError('Please select a file');
+      return;
+    }
+
+    if (file.type !== 'application/pdf') {
+      setError('Only PDF files are supported');
+      return;
+    }
+
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      setError('File too large. Maximum size is 50MB');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/agent/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResult(data);
+        setFile(null); // Clear file selection
+      } else {
+        setError(data.message || 'Upload failed');
+      }
+
+    } catch (err) {
+      setError(`Upload error: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
+  }, [file]);
+
+  return (
+    <div className="document-uploader">
+      <div className="upload-section">
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={handleFileChange}
+          disabled={uploading}
+        />
+        <button
+          onClick={uploadDocument}
+          disabled={!file || uploading}
+        >
+          {uploading ? 'Uploading...' : 'Upload Document'}
+        </button>
+      </div>
+
+      {file && (
+        <div className="file-info">
+          <p><strong>Selected:</strong> {file.name}</p>
+          <p><strong>Size:</strong> {(file.size / 1024 / 1024).toFixed(1)} MB</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="error">
+          ❌ {error}
+        </div>
+      )}
+
+      {result && (
+        <div className="success">
+          <h3>✅ Upload Successful!</h3>
+          <div><strong>Filename:</strong> {result.filename}</div>
+          <div><strong>Size:</strong> {(result.originalSize / 1024 / 1024).toFixed(1)} MB</div>
+          <div><strong>Conversation ID:</strong> {result.conversationId}</div>
+          <div className="agent-response">
+            <strong>Agent Response:</strong>
+            <p>{result.agentResponse}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default DocumentUploader;
+```
+
+### 4. Vue.js Implementation
+```vue
+<template>
+  <div class="document-uploader">
+    <div class="upload-section">
+      <input
+        type="file"
+        accept=".pdf"
+        @change="handleFileChange"
+        :disabled="uploading"
+        ref="fileInput"
+      />
+      <button
+        @click="uploadDocument"
+        :disabled="!file || uploading"
+      >
+        {{ uploading ? 'Uploading...' : 'Upload Document' }}
+      </button>
+    </div>
+
+    <div v-if="file" class="file-info">
+      <p><strong>Selected:</strong> {{ file.name }}</p>
+      <p><strong>Size:</strong> {{ (file.size / 1024 / 1024).toFixed(1) }} MB</p>
+    </div>
+
+    <div v-if="error" class="error">
+      ❌ {{ error }}
+    </div>
+
+    <div v-if="result" class="success">
+      <h3>✅ Upload Successful!</h3>
+      <div><strong>Filename:</strong> {{ result.filename }}</div>
+      <div><strong>Size:</strong> {{ (result.originalSize / 1024 / 1024).toFixed(1) }} MB</div>
+      <div><strong>Conversation ID:</strong> {{ result.conversationId }}</div>
+      <div class="agent-response">
+        <strong>Agent Response:</strong>
+        <p>{{ result.agentResponse }}</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      file: null,
+      uploading: false,
+      result: null,
+      error: null
+    };
+  },
+  methods: {
+    handleFileChange(event) {
+      this.file = event.target.files[0];
+      this.result = null;
+      this.error = null;
+    },
+    
+    async uploadDocument() {
+      if (!this.file) {
+        this.error = 'Please select a file';
+        return;
+      }
+
+      if (this.file.type !== 'application/pdf') {
+        this.error = 'Only PDF files are supported';
+        return;
+      }
+
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (this.file.size > maxSize) {
+        this.error = 'File too large. Maximum size is 50MB';
+        return;
+      }
+
+      this.uploading = true;
+      this.error = null;
+
+      const formData = new FormData();
+      formData.append('file', this.file);
+
+      try {
+        const response = await fetch('/agent/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          this.result = data;
+          this.file = null;
+          this.$refs.fileInput.value = '';
+        } else {
+          this.error = data.message || 'Upload failed';
+        }
+
+      } catch (err) {
+        this.error = `Upload error: ${err.message}`;
+      } finally {
+        this.uploading = false;
+      }
+    }
+  }
+};
+</script>
+
+<style scoped>
+.document-uploader {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.upload-section {
+  margin-bottom: 20px;
+}
+
+.file-info, .success, .error {
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 5px;
+}
+
+.file-info {
+  background: #f0f8ff;
+  border: 1px solid #cce7ff;
+}
+
+.success {
+  background: #f0fff4;
+  border: 1px solid #b3e5c7;
+}
+
+.error {
+  background: #fff5f5;
+  border: 1px solid #ffb3ba;
+  color: #d63384;
+}
+
+.agent-response {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+}
+</style>
+```
+
+## Response Format
+
+**Successful Upload:**
+```json
+{
+  "success": true,
+  "filename": "my-document.pdf",
+  "originalSize": 1048576,
+  "mimeType": "application/pdf",
+  "agentResponse": "Document 'my-document.pdf' successfully processed and stored for user abc123. Ready for querying with 15 searchable chunks.",
+  "conversationId": "uuid-here",
+  "messageId": "uuid-here"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "message": "Only PDF files are allowed",
+  "error": "Bad Request",
+  "statusCode": 400
+}
+```
+
+## Advantages of This Approach
+
+✅ **No base64 overhead** - Files stay original size during upload
+✅ **50MB file limit** - Much larger than chat method (~6MB)
+✅ **Automatic validation** - File type and size checked server-side
+✅ **Standard HTTP** - Uses proper multipart/form-data
+✅ **Memory efficient** - Streaming upload, not loading entire file in memory
+✅ **Error handling** - Proper HTTP status codes and error messages
+✅ **Existing workflow** - Still uses your existing upload tool on backend
+✅ **Progress tracking** - Can add upload progress bars easily
+
+## Testing
+
+Test the endpoint with curl:
+```bash
+curl -X POST \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "file=@/path/to/your/document.pdf" \
+  http://localhost:3000/agent/upload
+```
+
+## Next Steps
+
+1. Implement one of the frontend examples above
+2. Test with a small PDF first
+3. Check the Swagger docs at `/api` for the new endpoint
+4. Monitor the response and conversation ID
+5. Query your uploaded document through the existing chat interface
+
+The document will be processed through the same `uploadDocumentMultiUserTool` and be immediately available for queries!

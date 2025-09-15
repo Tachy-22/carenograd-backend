@@ -1,0 +1,22 @@
+### Agent Chat Streaming API Calls
+@baseUrl = http://localhost:3000
+@jwtToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YjI3NmY2Zi1hYzJkLTQzZGItYTc3Ni1jZTk3NjYyOWQzZjEiLCJlbWFpbCI6ImVudGVrdW1lamVmZnJleUBnbWFpbC5jb20iLCJuYW1lIjoiSmVmZnJleSBFbnRla3VtZSIsImlhdCI6MTc1NzE1NjE1NCwiZXhwIjoxNzU3MjQyNTU0fQ.HsCezVKtheCmzsGNqygspDeu731m6IlILBhZCbELUr0
+
+### 1. Send Streaming Chat Message (Real-time progress updates)
+POST {{baseUrl}}/agent/chat/stream
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Research top 2 computer science graduate programs in NIGERIA and create a detailed spreadsheet with program info."
+}
+
+### 2. Another Streaming Request  
+POST {{baseUrl}}/agent/chat/stream
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "holo",
+  "conversationId":"d233f1b6-0047-439c-8c4b-b3980fa4a3b1"
+}

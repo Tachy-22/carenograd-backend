@@ -1,0 +1,354 @@
+# Frontend Document Upload Guide
+
+## Overview
+The Remograd system handles document uploads through the AI agent using natural language commands. There are NO separate file upload endpoints - everything goes through the chat API with the agent intelligently handling file processing.
+
+## How Document Upload Works
+
+### Architecture
+1. **Frontend**: Sends chat messages to `/agent/chat` API endpoint
+2. **Agent Service**: Routes messages to MultiUserAgent 
+3. **MultiUserAgent**: Uses `uploadDocumentMultiUserTool` to process files
+4. **Tool**: Handles PDF processing, text extraction, chunking, embeddings, and Supabase storage
+
+### Upload Methods
+The agent supports 2 ways to upload documents:
+
+#### Method 1: File Path (Server-side files)
+```javascript
+// Tell the agent to upload a file that exists on the server
+const response = await fetch('/agent/chat', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    message: "Please upload and process my CV at /path/to/document.pdf"
+  })
+});
+```
+
+#### Method 2: Base64 File Buffer (Frontend uploads)
+```javascript
+// Convert file to base64 and send to agent
+const fileInput = document.getElementById('fileInput');
+const file = fileInput.files[0];
+const base64 = await fileToBase64(file);
+
+const response = await fetch('/agent/chat', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    message: `Upload this document: filename="${file.name}", fileBuffer="${base64}"`
+  })
+});
+
+// Helper function
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1]; // Remove data:application/pdf;base64, prefix
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+```
+
+## Frontend Implementation Guide
+
+### 1. File Upload Component
+```html
+<!-- HTML -->
+<div class="upload-container">
+  <input type="file" id="fileInput" accept=".pdf" />
+  <button onclick="uploadDocument()">Upload CV/Document</button>
+  <div id="uploadStatus"></div>
+</div>
+```
+
+### 2. JavaScript Implementation
+```javascript
+// Complete upload function
+async function uploadDocument() {
+  const fileInput = document.getElementById('fileInput');
+  const statusDiv = document.getElementById('uploadStatus');
+  
+  if (!fileInput.files[0]) {
+    statusDiv.innerHTML = 'Please select a file';
+    return;
+  }
+  
+  const file = fileInput.files[0];
+  
+  // Validate file type
+  if (file.type !== 'application/pdf') {
+    statusDiv.innerHTML = 'Only PDF files are supported';
+    return;
+  }
+  
+  // Validate file size (max 10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    statusDiv.innerHTML = 'File too large. Maximum size is 10MB';
+    return;
+  }
+  
+  try {
+    statusDiv.innerHTML = 'Converting file...';
+    
+    // Convert to base64
+    const base64 = await fileToBase64(file);
+    
+    statusDiv.innerHTML = 'Uploading and processing...';
+    
+    // Send to agent
+    const response = await fetch('/agent/chat', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `Please upload and process this document. The filename is "${file.name}" and here is the base64 file data: ${base64}`
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok) {
+      statusDiv.innerHTML = `✅ Upload successful: ${result.response}`;
+    } else {
+      statusDiv.innerHTML = `❌ Upload failed: ${result.message}`;
+    }
+    
+  } catch (error) {
+    statusDiv.innerHTML = `❌ Error: ${error.message}`;
+  }
+}
+
+// Helper function to convert file to base64
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      // Remove the data:application/pdf;base64, prefix
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+```
+
+### 3. Alternative: Natural Language Upload
+```javascript
+// Users can also upload by chatting naturally
+async function sendChatMessage(message) {
+  const response = await fetch('/agent/chat', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ message })
+  });
+  
+  return response.json();
+}
+
+// Examples of natural language upload commands:
+// "Upload my CV"
+// "Process my resume document" 
+// "Add my transcript to the knowledge base"
+// "I want to upload my research paper"
+```
+
+## Document Management Features
+
+### List User Documents
+```javascript
+// Get all uploaded documents
+const result = await sendChatMessage("Can you list all my uploaded documents?");
+```
+
+### Query Documents  
+```javascript
+// Query the knowledge base
+const result = await sendChatMessage("What is my educational background based on my uploaded CV?");
+const skills = await sendChatMessage("What technical skills do I have according to my documents?");
+```
+
+### Delete Documents
+```javascript
+// Delete a specific document
+const result = await sendChatMessage("Delete the document with filename 'old_resume.pdf'");
+```
+
+## Upload Response Format
+When successful, the agent responds with details about the processed document:
+
+```json
+{
+  "response": "Document 'CV.pdf' successfully processed and stored for user abc123. Ready for querying with 15 searchable chunks.",
+  "conversationId": "uuid",
+  "messageId": "uuid"
+}
+```
+
+## File Requirements
+- **Format**: PDF only
+- **Size**: Maximum 10MB (recommended)
+- **Content**: Must contain readable text (not just images)
+- **Encoding**: Base64 for frontend uploads
+
+## Error Handling
+Common errors and responses:
+- "Invalid PDF file format" - File is not a valid PDF
+- "No readable text found in PDF" - PDF contains only images/scanned content  
+- "File too large" - Exceeds size limits
+- "SUPABASE_URL and SUPABASE_ANON_KEY environment variables required" - Server configuration issue
+
+## Processing Details
+When a document is uploaded:
+1. **Validation**: Checks PDF format and file size
+2. **Text Extraction**: Extracts text using pdf-parse
+3. **Chunking**: Splits text into searchable chunks (paragraph-based by default)
+4. **Embeddings**: Generates OpenAI embeddings for each chunk
+5. **Storage**: Stores in Supabase with user isolation
+6. **Indexing**: Makes document searchable via RAG queries
+
+## Best Practices
+1. **File Naming**: Use descriptive filenames (e.g., "John_Doe_CV_2024.pdf")
+2. **Content**: Ensure PDFs contain selectable text, not just scanned images
+3. **Size**: Keep files under 5MB for faster processing
+4. **Format**: PDFs work best - Word docs need conversion first
+5. **Privacy**: All documents are user-isolated - users can only access their own files
+
+## Integration Examples
+
+### React Component
+```jsx
+import React, { useState } from 'react';
+
+function DocumentUploader() {
+  const [file, setFile] = useState(null);
+  const [status, setStatus] = useState('');
+  
+  const uploadDocument = async () => {
+    if (!file) return;
+    
+    setStatus('Processing...');
+    
+    try {
+      const base64 = await fileToBase64(file);
+      
+      const response = await fetch('/agent/chat', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: `Upload document: filename="${file.name}", base64="${base64}"`
+        })
+      });
+      
+      const result = await response.json();
+      setStatus(result.response);
+      
+    } catch (error) {
+      setStatus(`Error: ${error.message}`);
+    }
+  };
+  
+  return (
+    <div>
+      <input 
+        type="file" 
+        accept=".pdf"
+        onChange={(e) => setFile(e.target.files[0])}
+      />
+      <button onClick={uploadDocument}>Upload</button>
+      <p>{status}</p>
+    </div>
+  );
+}
+```
+
+### Vue.js Component  
+```vue
+<template>
+  <div>
+    <input type="file" @change="selectFile" accept=".pdf" />
+    <button @click="uploadDocument">Upload</button>
+    <p>{{ status }}</p>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      file: null,
+      status: ''
+    };
+  },
+  methods: {
+    selectFile(event) {
+      this.file = event.target.files[0];
+    },
+    async uploadDocument() {
+      if (!this.file) return;
+      
+      this.status = 'Processing...';
+      
+      try {
+        const base64 = await this.fileToBase64(this.file);
+        
+        const response = await fetch('/agent/chat', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `Upload: filename="${this.file.name}", base64="${base64}"`
+          })
+        });
+        
+        const result = await response.json();
+        this.status = result.response;
+        
+      } catch (error) {
+        this.status = `Error: ${error.message}`;
+      }
+    },
+    fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+      });
+    }
+  }
+};
+</script>
+```
+
+## Summary
+- **No separate upload endpoints** - everything goes through `/agent/chat`
+- **Two methods**: file path (server files) or base64 buffer (frontend files)  
+- **Natural language interface** - users can upload by chatting
+- **Automatic processing** - PDFs are extracted, chunked, embedded, and stored
+- **User isolation** - each user can only access their own documents
+- **RAG-ready** - uploaded documents are immediately searchable
+
+The system is designed to be simple for users (just chat to upload) while being powerful under the hood with full PDF processing and semantic search capabilities.

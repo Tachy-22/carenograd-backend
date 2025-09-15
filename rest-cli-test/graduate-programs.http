@@ -1,0 +1,57 @@
+### Graduate Program Research API Calls
+@baseUrl = http://localhost:3000
+@jwtToken = YOUR_JWT_TOKEN_HERE
+
+### 1. Research Programs Based on Profile
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Research and find graduate programs that match my background and interests"
+}
+
+### 2. Create Application Tracking Spreadsheet
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Create a spreadsheet called 'Postgrad Application Tracker' to track my applications"
+}
+
+### 3. Find Professors in Machine Learning
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Find professors working on machine learning at top universities and add them to my tracking spreadsheet"
+}
+
+### 4. Research Specific University
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Research Stanford University's Computer Science graduate programs and find relevant professors"
+}
+
+### 5. Draft Email to Professor
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Draft an email to Professor John Smith at MIT expressing interest in their AI research lab"
+}
+
+### 6. Check Application Requirements
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "What are the typical requirements for PhD programs in Computer Science?"
+}

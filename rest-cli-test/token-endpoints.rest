@@ -1,0 +1,180 @@
+### Token Tracking API Tests
+### Make sure to replace {{baseUrl}} and {{authToken}} with actual values
+
+@baseUrl = http://localhost:3000
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YjI3NmY2Zi1hYzJkLTQzZGItYTc3Ni1jZTk3NjYyOWQzZjEiLCJlbWFpbCI6ImVudGVrdW1lamVmZnJleUBnbWFpbC5jb20iLCJuYW1lIjoiSmVmZnJleSBFbnRla3VtZSIsImlhdCI6MTc1NzM4MTkxMiwiZXhwIjoxNzU3NDY4MzEyfQ.kr14Zas9MaVuRA8Q0UbRrh7qlcnihpiIa3wPg1jTqYk
+
+### 1. Get System-wide Token Statistics
+### Shows total available tokens, tokens used, number of users, current model, and per-model status
+GET {{baseUrl}}/agent/tokens/statistics
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 2. Get User-specific Token Statistics  
+### Shows tokens used by authenticated user, requests made, current model, percentage of total usage, and recent usage history
+GET {{baseUrl}}/agent/tokens/user
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 3. Reset User Token Usage
+### Resets token usage statistics for the authenticated user (useful for testing or administrative purposes)
+POST {{baseUrl}}/agent/tokens/reset
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 4. Test Chat to Generate Token Usage
+### Send a chat message to generate some token usage for testing the tracking
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "message": "Hello, "
+}
+
+###
+
+### 5. Test Chat Stream to Generate Token Usage
+### Send a streaming chat message to generate token usage
+POST {{baseUrl}}/agent/chat/stream
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "message": "Can you help me find some universities for my master's degree?"
+}
+
+###
+
+### 6. Get Updated User Statistics After Usage
+### Check how token usage changed after sending messages
+GET {{baseUrl}}/agent/tokens/user
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 7. Get Updated System Statistics
+### Check system-wide statistics after usage
+GET {{baseUrl}}/agent/tokens/statistics
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 8. Get User Quota Status (Frontend Warnings)
+### Get detailed quota status for frontend warning system
+GET {{baseUrl}}/agent/tokens/quota-status
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 9. Check if User Can Make Request
+### Check if user can make a request with estimated tokens (e.g., 1000 tokens)
+GET {{baseUrl}}/agent/tokens/can-request/1000
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 10. Get Current Warning Level
+### Get warning level for frontend notifications (LOW, MEDIUM, HIGH, CRITICAL)
+GET {{baseUrl}}/agent/tokens/warning-level
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### 11. Test High Token Request Check
+### Check what happens when requesting more tokens than available
+GET {{baseUrl}}/agent/tokens/can-request/50000
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+###
+
+### Example Expected Responses:
+
+### System Statistics Response:
+# {
+#   "totalAvailableTokens": 2250000,
+#   "totalTokensUsed": 15420,
+#   "totalUsers": 3,
+#   "currentModel": "gemini-2.0-flash",
+#   "remainingTokens": 984580,
+#   "modelsStatus": {
+#     "gemini-2.0-flash": {
+#       "totalTokens": 1000000,
+#       "usedTokens": 15420,
+#       "remainingTokens": 984580,
+#       "requestsPerMinute": 15
+#     },
+#     "gemini-1.5-flash": {
+#       "totalTokens": 250000,
+#       "usedTokens": 0,
+#       "remainingTokens": 250000,
+#       "requestsPerMinute": 15
+#     }
+#   },
+#   "topUsers": [
+#     {
+#       "userId": "8b276f6f-ac2d-43db-a776-ce976629d3f1",
+#       "tokensUsed": 8420,
+#       "requestsMade": 12,
+#       "currentModel": "gemini-2.0-flash"
+#     }
+#   ]
+# }
+
+### User Statistics Response:
+# {
+#   "tokensUsed": 8420,
+#   "requestsMade": 12,
+#   "currentModel": "gemini-2.0-flash",
+#   "percentageOfTotal": 54.6,
+#   "recentUsage": [
+#     {
+#       "promptTokens": 450,
+#       "completionTokens": 380,
+#       "totalTokens": 830,
+#       "model": "gemini-2.0-flash",
+#       "userId": "8b276f6f-ac2d-43db-a776-ce976629d3f1",
+#       "timestamp": "2025-09-09T01:45:23.456Z"
+#     }
+#   ]
+# }
+
+### Reset Response:
+# {
+#   "message": "User token usage reset successfully",
+#   "userId": "8b276f6f-ac2d-43db-a776-ce976629d3f1"
+# }
+
+###
+
+### How to Use This File:
+# 1. Install REST Client extension in VS Code
+# 2. Replace {{authToken}} with your actual JWT token from /auth/google
+# 3. Make sure the server is running on localhost:3000
+# 4. Click "Send Request" above each ### separator
+# 5. View responses in the right panel
+
+### Getting Auth Token:
+# 1. Visit http://localhost:3000/auth/google in browser
+# 2. Complete OAuth flow
+# 3. Copy the JWT token from the response
+# 4. Replace {{authToken}} above with the actual token
+
+### Testing Flow:
+# 1. Get baseline statistics (steps 1-2)
+# 2. Send some chat messages (steps 4-5) 
+# 3. Check updated statistics (steps 6-7)
+# 4. Reset usage (step 3)
+# 5. Verify reset worked (steps 1-2)

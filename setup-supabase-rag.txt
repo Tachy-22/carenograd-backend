@@ -1,0 +1,52 @@
+-- Supabase RAG Database Setup Script
+-- Copy and paste this SQL into your Supabase Dashboard → SQL Editor → New Query
+
+-- Step 1: Enable pgvector extension for vector similarity search
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Step 2: Create documents table to store PDF metadata
+CREATE TABLE IF NOT EXISTS documents (
+  id TEXT PRIMARY KEY,
+  filename TEXT NOT NULL,
+  title TEXT,
+  author TEXT,
+  category TEXT,
+  tags TEXT[],
+  file_size INTEGER,
+  page_count INTEGER,
+  chunk_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Step 3: Create embeddings table to store text chunks and their vectors
+-- Using 1536 dimensions for OpenAI text-embedding-3-small model
+CREATE TABLE IF NOT EXISTS embeddings (
+  id TEXT PRIMARY KEY,
+  document_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  embedding vector(1536) NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Step 4: Create performance indexes
+-- HNSW index for fast vector similarity search
+CREATE INDEX IF NOT EXISTS embeddings_embedding_idx 
+ON embeddings USING hnsw (embedding vector_cosine_ops);
+
+-- Regular index for document lookups
+CREATE INDEX IF NOT EXISTS embeddings_document_id_idx 
+ON embeddings(document_id);
+
+-- Step 5: Verify tables were created
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+AND table_name IN ('documents', 'embeddings');
+
+-- Step 6: Verify pgvector extension is enabled
+SELECT * FROM pg_extension WHERE extname = 'vector';
+
+-- Success! Your RAG database is now ready.
+-- You can now run: "Process the PDF file at /Users/admin/Desktop/remograd/agu jonas acv.pdf and create a knowledge base from it so I can ask questions about it"

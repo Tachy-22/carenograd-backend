@@ -1,0 +1,57 @@
+### Google APIs Integration Tests
+@baseUrl = http://localhost:3000
+@jwtToken = YOUR_JWT_TOKEN_HERE
+
+### 1. Create Google Spreadsheet
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Create a Google Spreadsheet called 'University Research' to track my research"
+}
+
+### 2. Add Data to Spreadsheet
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Add MIT, Stanford, and CMU to my University Research spreadsheet with their CS department info"
+}
+
+### 3. Create Google Doc
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Create a Google Doc called 'Personal Statement Draft' and add a heading"
+}
+
+### 4. Send Gmail Draft
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Create an email draft to test@example.com with subject 'Graduate Program Inquiry'"
+}
+
+### 5. List My Emails
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Show me my recent emails from the last week"
+}
+
+### 6. Search Google for Universities
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Search Google for 'top computer science PhD programs 2024' and summarize the results"
+}

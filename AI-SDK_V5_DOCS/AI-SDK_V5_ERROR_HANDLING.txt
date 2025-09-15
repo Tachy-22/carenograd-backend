@@ -1,0 +1,231 @@
+AI SDK 5 is available now.
+
+View Announcement
+AI SDK by Vercel
+Foundations
+
+Overview
+Providers and Models
+Prompts
+Tools
+Streaming
+Agents
+Getting Started
+
+Navigating the Library
+Next.js App Router
+Next.js Pages Router
+Svelte
+Vue.js (Nuxt)
+Node.js
+Expo
+AI SDK Core
+
+Overview
+Generating Text
+Generating Structured Data
+Tool Calling
+Prompt Engineering
+Settings
+Embeddings
+Image Generation
+Transcription
+Speech
+Language Model Middleware
+Provider & Model Management
+Error Handling
+Testing
+Telemetry
+AI SDK UI
+
+Overview
+Chatbot
+Chatbot Message Persistence
+Chatbot Tool Usage
+Generative User Interfaces
+Completion
+Object Generation
+Streaming Custom Data
+Error Handling
+Transport
+Reading UIMessage Streams
+Message Metadata
+Stream Protocols
+AI SDK RSC
+
+Advanced
+
+Reference
+
+AI SDK Core
+
+AI SDK UI
+
+AI SDK RSC
+
+Stream Helpers
+
+AI SDK Errors
+
+Migration Guides
+
+Troubleshooting
+
+AI SDK UI
+Error Handling
+Error Handling
+Error Helper Object
+Each AI SDK UI hook also returns an error object that you can use to render the error in your UI. You can use the error object to show an error message, disable the submit button, or show a retry button.
+
+We recommend showing a generic error message to the user, such as "Something went wrong." This is a good practice to avoid leaking information from the server.
+
+
+'use client';
+
+import { useChat } from '@ai-sdk/react';
+import { useState } from 'react';
+
+export default function Chat() {
+  const [input, setInput] = useState('');
+  const { messages, sendMessage, error, regenerate } = useChat();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage({ text: input });
+    setInput('');
+  };
+
+  return (
+    <div>
+      {messages.map(m => (
+        <div key={m.id}>
+          {m.role}:{' '}
+          {m.parts
+            .filter(part => part.type === 'text')
+            .map(part => part.text)
+            .join('')}
+        </div>
+      ))}
+
+      {error && (
+        <>
+          <div>An error occurred.</div>
+          <button type="button" onClick={() => regenerate()}>
+            Retry
+          </button>
+        </>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          disabled={error != null}
+        />
+      </form>
+    </div>
+  );
+}
+Alternative: replace last message
+Alternatively you can write a custom submit handler that replaces the last message when an error is present.
+
+
+'use client';
+
+import { useChat } from '@ai-sdk/react';
+import { useState } from 'react';
+
+export default function Chat() {
+  const [input, setInput] = useState('');
+  const { sendMessage, error, messages, setMessages } = useChat();
+
+  function customSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (error != null) {
+      setMessages(messages.slice(0, -1)); // remove last message
+    }
+
+    sendMessage({ text: input });
+    setInput('');
+  }
+
+  return (
+    <div>
+      {messages.map(m => (
+        <div key={m.id}>
+          {m.role}:{' '}
+          {m.parts
+            .filter(part => part.type === 'text')
+            .map(part => part.text)
+            .join('')}
+        </div>
+      ))}
+
+      {error && <div>An error occurred.</div>}
+
+      <form onSubmit={customSubmit}>
+        <input value={input} onChange={e => setInput(e.target.value)} />
+      </form>
+    </div>
+  );
+}
+Error Handling Callback
+Errors can be processed by passing an onError callback function as an option to the useChat or useCompletion hooks. The callback function receives an error object as an argument.
+
+
+import { useChat } from '@ai-sdk/react';
+
+export default function Page() {
+  const {
+    /* ... */
+  } = useChat({
+    // handle error:
+    onError: error => {
+      console.error(error);
+    },
+  });
+}
+Injecting Errors for Testing
+You might want to create errors for testing. You can easily do so by throwing an error in your route handler:
+
+
+export async function POST(req: Request) {
+  throw new Error('This is a test error');
+}
+Previous
+Streaming Custom Data
+Next
+Transport
+On this page
+Error Handling
+Error Helper Object
+Alternative: replace last message
+Error Handling Callback
+Injecting Errors for Testing
+Elevate your AI applications with Vercel.
+Trusted by OpenAI, Replicate, Suno, Pinecone, and more.
+Vercel provides tools and infrastructure to deploy AI apps and features at scale.
+Resources
+Docs
+Cookbook
+Providers
+Showcase
+GitHub
+Discussions
+More
+Playground
+Contact Sales
+About Vercel
+Next.js + Vercel
+Open Source Software
+GitHub
+X
+Legal
+Privacy Policy
+© 2025 Vercel, Inc.
+
+
+
+
+AI SDK UI: Error Handling

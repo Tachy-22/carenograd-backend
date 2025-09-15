@@ -1,0 +1,66 @@
+### Document Management API Calls
+@baseUrl = http://localhost:3000
+@jwtToken = YOUR_JWT_TOKEN_HERE
+
+### 1. Upload CV Document
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Please upload and process my CV at /Users/admin/Desktop/remograd/Agu Jonas ACV.pdf"
+}
+
+### 2. Upload Another Document with Metadata
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Upload a research paper and tag it as 'machine learning' and 'research'"
+}
+
+### 3. List All My Documents
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Can you list all my uploaded documents?"
+}
+
+### 4. Query Knowledge Base About Education
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "What is my educational background based on my uploaded documents?"
+}
+
+### 5. Query Knowledge Base About Experience
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "What work experience do I have according to my documents?"
+}
+
+### 6. Query Knowledge Base About Skills
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "What technical skills and programming languages do I know?"
+}
+
+### 7. Delete a Document
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Can you delete the document with ID 'doc_123' from my knowledge base?"
+}

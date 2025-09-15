@@ -1,0 +1,41 @@
+### Agent Chat API Calls
+@baseUrl = http://localhost:3000
+@jwtToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YjI3NmY2Zi1hYzJkLTQzZGItYTc3Ni1jZTk3NjYyOWQzZjEiLCJlbWFpbCI6ImVudGVrdW1lamVmZnJleUBnbWFpbC5jb20iLCJuYW1lIjoiSmVmZnJleSBFbnRla3VtZSIsImlhdCI6MTc1NzE1NjE1NCwiZXhwIjoxNzU3MjQyNTU0fQ.HsCezVKtheCmzsGNqygspDeu731m6IlILBhZCbELUr0
+
+### 1. Send First Chat Message
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "what did you say?",
+  "conversationId": "ebd8d0e7-9039-41d3-8237-c7fef0f81597"
+}
+
+### 2. Continue Conversation (use conversationId from response above)
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "check 2 top unis in usa. and place them in a spreadsheet called test-sheet",
+  "conversationId": ""
+}
+
+### 3. Ask About Background Check
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Can you check my background and qualifications?"
+}
+
+### 4. Request Graduate Program Research
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "message": "Based on my background, what graduate programs would be a good fit for me?"
+}
