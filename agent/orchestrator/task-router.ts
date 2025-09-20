@@ -1,17 +1,17 @@
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { z } from 'zod';
-import { 
-  ComplexTask, 
-  RoutingPlan, 
-  UserContext, 
-  SpecializedTask, 
-  TaskType, 
-  TaskIntent 
+import {
+  ComplexTask,
+  RoutingPlan,
+  UserContext,
+  SpecializedTask,
+  TaskType,
+  TaskIntent
 } from './types';
 
 export class TaskRouter {
-  private model = google('gemini-2.0-flash');
+  private model = google('gemini-2.5-flash');
 
   // Allow orchestrator to update the model
   setModel(modelName: string): void {
@@ -21,7 +21,7 @@ export class TaskRouter {
   async routeTask(userMessage: string, context: UserContext): Promise<RoutingPlan> {
     // Step 1: Analyze user intent and classify task
     const analysis = await this.analyzeUserIntent(userMessage, context);
-    
+
     // Step 2: Create routing plan based on analysis
     return this.createRoutingPlan(analysis, userMessage, context);
   }
@@ -33,7 +33,7 @@ export class TaskRouter {
         intent: z.enum([
           'greeting',
           'analyze_profile',
-          'find_programs', 
+          'find_programs',
           'research_professors',
           'organize_data',
           'compose_email',
@@ -45,7 +45,7 @@ export class TaskRouter {
         taskTypes: z.array(z.enum([
           'greeting',
           'cv_analysis',
-          'program_search', 
+          'program_search',
           'professor_research',
           'spreadsheet_management',
           'email_composition',
@@ -95,14 +95,14 @@ export class TaskRouter {
   }
 
   private createRoutingPlan(
-    analysis: any, 
-    userMessage: string, 
+    analysis: any,
+    userMessage: string,
     context: UserContext
   ): RoutingPlan {
     const agentMapping = {
       'greeting': 'PostgradApplicationAgent',
       'cv_analysis': 'PostgradApplicationAgent',
-      'program_search': 'PostgradApplicationAgent', 
+      'program_search': 'PostgradApplicationAgent',
       'professor_research': 'AcademicResearchAgent',
       'spreadsheet_management': 'DataOrganizerAgent',
       'email_composition': 'CommunicationAgent',
@@ -116,7 +116,7 @@ export class TaskRouter {
 
     const primaryTaskType = analysis.taskTypes[0] as TaskType;
     const primaryAgent = agentMapping[primaryTaskType];
-    
+
     const supportingAgents = analysis.taskTypes.slice(1)
       .map((taskType: TaskType) => agentMapping[taskType])
       .filter((agent: string) => agent !== primaryAgent && agent) as string[];
@@ -148,7 +148,7 @@ export class TaskRouter {
   async createEmergencyPlan(userMessage: string, context: UserContext): Promise<RoutingPlan> {
     // Fallback routing when main analysis fails
     const message = userMessage.toLowerCase().trim();
-    
+
     // Check for greetings first
     const greetings = ['hi', 'hello', 'hey', 'hiya', 'good morning', 'good afternoon'];
     if (greetings.some(greeting => message === greeting || message.startsWith(greeting + ' '))) {
@@ -204,7 +204,7 @@ export class TaskRouter {
       primaryAgent = 'CommunicationAgent';
       taskType = 'email_composition';
     } else if (containsKeywords.spreadsheet) {
-      primaryAgent = 'DataOrganizerAgent';  
+      primaryAgent = 'DataOrganizerAgent';
       taskType = 'spreadsheet_management';
     } else if (containsKeywords.research) {
       primaryAgent = 'AcademicResearchAgent';

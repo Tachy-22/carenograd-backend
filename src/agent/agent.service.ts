@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AgentOrchestrator } from '../../agent/orchestrator/agent-orchestrator';
+import { MonolithicAgent } from '../../agent-monolith/monolithic-agent';
 import { DatabaseService, User } from '../database/database.service';
 import { DatabaseTokenTrackerService } from './database-token-tracker.service';
 import { AuthService } from '../auth/auth.service';
+import { GeminiWithKeyPoolService } from '../services/gemini-with-key-pool.service';
 
 export interface ChatRequest {
   message: string;
@@ -22,7 +23,8 @@ export class AgentService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly databaseTokenTrackerService: DatabaseTokenTrackerService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly geminiService: GeminiWithKeyPoolService
   ) { }
 
   async chatStream(user: User, request: ChatRequest, onProgress: (update: string) => void): Promise<ChatResponse> {
@@ -32,8 +34,8 @@ export class AgentService {
   async chat(user: User, request: ChatRequest, onProgress?: (update: string) => void): Promise<ChatResponse> {
     const { message, conversationId } = request;
 
-    // Create a new orchestrator instance for this user
-    const orchestrator = new AgentOrchestrator();
+    // Create a new monolithic agent instance for this user with multi-API allocation
+    const agent = new MonolithicAgent(this.geminiService);
 
     // Get or create conversation
     let conversation;
@@ -51,7 +53,7 @@ export class AgentService {
     }
 
     // Store user message
-    const userMessage = await this.databaseService.createMessage({
+    await this.databaseService.createMessage({
       conversation_id: conversation.id,
       user_id: user.id,
       role: 'user',
@@ -81,8 +83,8 @@ export class AgentService {
 
     try {
       // Check quota before making request
-      const estimatedTokens = Math.min(8000, message.length * 4);
-      const quotaCheck = await this.databaseTokenTrackerService.canUserMakeRequest(user.id, estimatedTokens);
+      const estimatedTokensForQuota = Math.min(8000, message.length * 4);
+      const quotaCheck = await this.databaseTokenTrackerService.canUserMakeRequest(user.id, estimatedTokensForQuota);
 
       if (!quotaCheck.allowed && !quotaCheck.suggestedModel) {
         throw new Error(`Request blocked: ${quotaCheck.reason}. No alternative models available.`);
@@ -93,19 +95,19 @@ export class AgentService {
         onProgress?.(`🔄 Switching to optimized model due to quota limits...`);
       }
 
-      // Execute complex task through orchestrator
-      const orchestrationResult = await orchestrator.executeComplexTask(message, userContext, (update) => {
+      // Execute task through monolithic agent with complete workflow capability
+      const agentResult = await agent.executeTask(message, userContext, (update) => {
         // Stream progress to client if callback provided
         if (onProgress) {
-          onProgress(update);
+          onProgress(update.message);
         } else {
           // Fallback to logging
-          this.logger.debug(`Orchestrator progress: ${update}`);
+          this.logger.debug(`Agent progress: ${update.message}`);
         }
       });
 
-      if (!orchestrationResult.success) {
-        throw new Error(`Orchestration failed: ${orchestrationResult.errors.join(', ')}`);
+      if (!agentResult.success) {
+        throw new Error(`Agent execution failed: ${agentResult.errors?.join(', ') || 'Unknown error'}`);
       }
 
       // Store assistant response
@@ -113,27 +115,26 @@ export class AgentService {
         conversation_id: conversation.id,
         user_id: user.id,
         role: 'assistant',
-        content: orchestrationResult.finalResponse,
+        content: agentResult.response,
         metadata: {
-          orchestrationSteps: orchestrationResult.steps.length,
-          executionTime: orchestrationResult.totalExecutionTime,
-          specialistsUsed: orchestrationResult.steps.map(s => s.agentName),
-          errors: orchestrationResult.errors
+          stepsUsed: agentResult.stepsUsed,
+          executionTime: agentResult.executionTime,
+          toolsUsed: agentResult.toolsUsed,
+          errors: agentResult.errors
         },
       });
 
-      // Record token usage (aggregate from all specialists)
-      if (orchestrationResult.tokensUsed > 0) {
-        await this.databaseTokenTrackerService.recordTokenUsage({
-          promptTokens: Math.floor(orchestrationResult.tokensUsed * 0.7), // Rough estimate
-          completionTokens: Math.floor(orchestrationResult.tokensUsed * 0.3),
-          totalTokens: orchestrationResult.tokensUsed,
-          model: 'gemini-2.0-flash', // Use standard model name for quota tracking
-          userId: user.id,
-          conversationId: conversation.id,
-          messageId: assistantMessage.id
-        });
-      }
+      // Record token usage estimate (monolithic agent pattern)
+      const estimatedTokens = Math.max(100, message.length * 2 + agentResult.response.length);
+      await this.databaseTokenTrackerService.recordTokenUsage({
+        promptTokens: Math.floor(estimatedTokens * 0.7),
+        completionTokens: Math.floor(estimatedTokens * 0.3),
+        totalTokens: estimatedTokens,
+        model: 'gemini-2.5-flash',
+        userId: user.id,
+        conversationId: conversation.id,
+        messageId: assistantMessage.id
+      });
 
       // Update conversation timestamp
       await this.databaseService.updateConversation(
@@ -143,12 +144,12 @@ export class AgentService {
       );
 
       return {
-        response: orchestrationResult.finalResponse,
+        response: agentResult.response,
         conversationId: conversation.id,
         messageId: assistantMessage.id,
       };
     } catch (error) {
-      this.logger.error('Orchestrator processing error:', error);
+      this.logger.error('Agent processing error:', error);
 
       // Store error response
       const errorMessage = await this.databaseService.createMessage({

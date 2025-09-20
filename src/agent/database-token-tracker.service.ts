@@ -39,7 +39,7 @@ export interface TokenUsageRecord {
 export class DatabaseTokenTrackerService {
   private readonly logger = new Logger(DatabaseTokenTrackerService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(private readonly databaseService: DatabaseService) { }
 
   /**
    * Record token usage and update all summaries
@@ -47,7 +47,7 @@ export class DatabaseTokenTrackerService {
   async recordTokenUsage(usage: TokenUsageRecord): Promise<void> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
-      
+
       // Insert token usage record directly
       const { error: insertError } = await supabase
         .from('token_usage_records')
@@ -156,10 +156,10 @@ export class DatabaseTokenTrackerService {
   /**
    * Get user's current quota status for a specific model
    */
-  async getUserQuotaStatus(userId: string, modelName: string = 'gemini-2.0-flash'): Promise<UserQuotaStatus | null> {
+  async getUserQuotaStatus(userId: string, modelName: string = 'gemini-2.5-flash'): Promise<UserQuotaStatus | null> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
-      
+
       // Use direct table queries instead of PostgreSQL functions
       // First get user quota allocation
       const { data: quotaData, error: quotaError } = await supabase
@@ -169,11 +169,11 @@ export class DatabaseTokenTrackerService {
         .eq('model_name', modelName)
         .eq('is_active', true)
         .single();
-      
+
       if (quotaError || !quotaData) {
         // User doesn't have quota yet, trigger allocation
         await this.allocateUserQuotas();
-        
+
         // Try again after allocation
         const { data: retryQuotaData, error: retryQuotaError } = await supabase
           .from('user_token_quotas')
@@ -182,15 +182,15 @@ export class DatabaseTokenTrackerService {
           .eq('model_name', modelName)
           .eq('is_active', true)
           .single();
-        
+
         if (retryQuotaError || !retryQuotaData) {
           return null;
         }
-        
+
         // Use retryQuotaData directly instead of assigning to const quotaData
         const allocatedTokens = retryQuotaData.allocated_tokens_per_minute;
         const allocatedRequests = retryQuotaData.allocated_requests_per_minute;
-        
+
         // Get current usage summary
         const { data: usageData } = await supabase
           .from('user_token_usage_summary')
@@ -198,22 +198,22 @@ export class DatabaseTokenTrackerService {
           .eq('user_id', userId)
           .eq('model_name', modelName)
           .single();
-        
+
         const tokensUsed = usageData?.tokens_used_current_minute || 0;
         const requestsMade = usageData?.requests_made_current_minute || 0;
-        
+
         const tokensRemaining = Math.max(0, allocatedTokens - tokensUsed);
         const requestsRemaining = Math.max(0, allocatedRequests - requestsMade);
-        
+
         const quotaPercentage = allocatedTokens > 0 ? (tokensUsed / allocatedTokens) * 100 : 0;
-        
+
         let warningLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
         if (quotaPercentage >= 95) warningLevel = 'CRITICAL';
         else if (quotaPercentage >= 80) warningLevel = 'HIGH';
         else if (quotaPercentage >= 60) warningLevel = 'MEDIUM';
-        
+
         const canMakeRequest = tokensUsed < allocatedTokens && requestsMade < allocatedRequests;
-        
+
         return {
           userId,
           modelName,
@@ -228,7 +228,7 @@ export class DatabaseTokenTrackerService {
           canMakeRequest
         };
       }
-      
+
       // Get current usage summary
       const { data: usageData } = await supabase
         .from('user_token_usage_summary')
@@ -236,25 +236,25 @@ export class DatabaseTokenTrackerService {
         .eq('user_id', userId)
         .eq('model_name', modelName)
         .single();
-      
+
       // Calculate status manually
       const tokensUsed = usageData?.tokens_used_current_minute || 0;
       const requestsMade = usageData?.requests_made_current_minute || 0;
       const allocatedTokens = quotaData.allocated_tokens_per_minute;
       const allocatedRequests = quotaData.allocated_requests_per_minute;
-      
+
       const tokensRemaining = Math.max(0, allocatedTokens - tokensUsed);
       const requestsRemaining = Math.max(0, allocatedRequests - requestsMade);
-      
+
       const quotaPercentage = allocatedTokens > 0 ? (tokensUsed / allocatedTokens) * 100 : 0;
-      
+
       let warningLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
       if (quotaPercentage >= 95) warningLevel = 'CRITICAL';
       else if (quotaPercentage >= 80) warningLevel = 'HIGH';
       else if (quotaPercentage >= 60) warningLevel = 'MEDIUM';
-      
+
       const canMakeRequest = tokensUsed < allocatedTokens && requestsMade < allocatedRequests;
-      
+
       return {
         userId,
         modelName,
@@ -268,7 +268,7 @@ export class DatabaseTokenTrackerService {
         warningLevel,
         canMakeRequest
       };
-      
+
     } catch (error) {
       this.logger.error('Failed to get user quota status:', error);
       return null;
@@ -281,40 +281,40 @@ export class DatabaseTokenTrackerService {
   async getSystemTokenOverview(): Promise<SystemTokenOverview[]> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
-      
+
       // Get token pools and calculate overview manually
       const { data: tokenPools, error: poolsError } = await supabase
         .from('token_pools')
         .select('*')
         .eq('is_active', true);
-      
+
       if (poolsError) {
         this.logger.error('Failed to get token pools:', poolsError);
         throw poolsError;
       }
-      
+
       const overviews: SystemTokenOverview[] = [];
-      
+
       for (const pool of tokenPools || []) {
         // Get total usage for this model
         const { data: usageData } = await supabase
           .from('user_token_usage_summary')
           .select('tokens_used_current_minute')
           .eq('model_name', pool.model_name);
-        
+
         const totalTokensUsed = (usageData || []).reduce((sum, usage) => sum + (usage.tokens_used_current_minute || 0), 0);
-        
+
         // Get active users count for this model
         const { count: activeUsersCount } = await supabase
           .from('user_token_quotas')
           .select('user_id', { count: 'exact' })
           .eq('model_name', pool.model_name)
           .eq('is_active', true);
-        
+
         const systemTokensRemaining = Math.max(0, pool.total_tokens_per_minute - totalTokensUsed);
         const tokensPerUser = activeUsersCount && activeUsersCount > 0 ? Math.floor(pool.total_tokens_per_minute / activeUsersCount) : 0;
         const systemUsagePercentage = pool.total_tokens_per_minute > 0 ? (totalTokensUsed / pool.total_tokens_per_minute) * 100 : 0;
-        
+
         overviews.push({
           modelName: pool.model_name,
           totalTokensPerMinute: pool.total_tokens_per_minute,
@@ -325,7 +325,7 @@ export class DatabaseTokenTrackerService {
           systemUsagePercentage
         });
       }
-      
+
       return overviews;
     } catch (error) {
       this.logger.error('Failed to get system token overview:', error);
@@ -336,7 +336,7 @@ export class DatabaseTokenTrackerService {
   /**
    * Check if user can make a request with estimated token usage
    */
-  async canUserMakeRequest(userId: string, estimatedTokens: number, modelName: string = 'gemini-2.0-flash'): Promise<{
+  async canUserMakeRequest(userId: string, estimatedTokens: number, modelName: string = 'gemini-2.5-flash'): Promise<{
     allowed: boolean;
     reason?: string;
     quotaStatus?: UserQuotaStatus;
@@ -344,7 +344,7 @@ export class DatabaseTokenTrackerService {
   }> {
     try {
       const quotaStatus = await this.getUserQuotaStatus(userId, modelName);
-      
+
       if (!quotaStatus) {
         return {
           allowed: false,
@@ -356,7 +356,7 @@ export class DatabaseTokenTrackerService {
       if (quotaStatus.tokensRemainingCurrentMinute < estimatedTokens) {
         // Try to find alternative model with sufficient quota
         const alternativeModel = await this.findAvailableModelForUser(userId, estimatedTokens);
-        
+
         return {
           allowed: false,
           reason: `Insufficient tokens. Need: ${estimatedTokens}, Available: ${quotaStatus.tokensRemainingCurrentMinute}`,
@@ -392,15 +392,15 @@ export class DatabaseTokenTrackerService {
    */
   async findAvailableModelForUser(userId: string, estimatedTokens: number): Promise<string | null> {
     try {
-      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-      
+      const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+
       for (const model of models) {
         const quotaStatus = await this.getUserQuotaStatus(userId, model);
         if (quotaStatus && quotaStatus.tokensRemainingCurrentMinute >= estimatedTokens && quotaStatus.requestsRemainingCurrentMinute > 0) {
           return model;
         }
       }
-      
+
       return null;
     } catch (error) {
       this.logger.error('Failed to find available model:', error);
@@ -414,34 +414,34 @@ export class DatabaseTokenTrackerService {
   async allocateUserQuotas(): Promise<void> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
-      
+
       // Get all active token pools
       const { data: tokenPools, error: poolsError } = await supabase
         .from('token_pools')
         .select('*')
         .eq('is_active', true);
-      
+
       if (poolsError) {
         this.logger.error('Failed to get token pools:', poolsError);
         throw poolsError;
       }
-      
+
       for (const pool of tokenPools || []) {
         // Count active users for this model (users who have made requests recently)
         const { count: activeUsersCount } = await supabase
           .from('users')
           .select('id', { count: 'exact' })
           .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Active in last 24 hours
-        
+
         const usersCount = Math.max(1, activeUsersCount || 1); // At least 1 user
         const tokensPerUser = Math.floor(pool.total_tokens_per_minute / usersCount);
         const requestsPerUser = Math.floor(pool.total_requests_per_minute / usersCount);
-        
+
         // Get all users to create/update quotas
         const { data: users } = await supabase
           .from('users')
           .select('id');
-        
+
         for (const user of users || []) {
           // Upsert user quota
           const { error: upsertError } = await supabase
@@ -456,13 +456,13 @@ export class DatabaseTokenTrackerService {
             }, {
               onConflict: 'user_id,model_name'
             });
-          
+
           if (upsertError) {
             this.logger.error(`Failed to upsert quota for user ${user.id}:`, upsertError);
           }
         }
       }
-      
+
       this.logger.log('🔄 User quotas reallocated based on active users');
     } catch (error) {
       this.logger.error('Failed to allocate user quotas:', error);
@@ -476,25 +476,25 @@ export class DatabaseTokenTrackerService {
   async getUserTokenHistory(userId: string, limit: number = 10, modelName?: string): Promise<any[]> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
-      
+
       let queryBuilder = supabase
         .from('token_usage_records')
         .select('prompt_tokens, completion_tokens, total_tokens, model_name, conversation_id, message_id, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(limit);
-      
+
       if (modelName) {
         queryBuilder = queryBuilder.eq('model_name', modelName);
       }
-      
+
       const { data, error } = await queryBuilder;
-      
+
       if (error) {
         this.logger.error('Failed to get user token history:', error);
         throw error;
       }
-      
+
       return data || [];
     } catch (error) {
       this.logger.error('Failed to get user token history:', error);
@@ -507,16 +507,16 @@ export class DatabaseTokenTrackerService {
    */
   async getUserAllModelsQuotaStatus(userId: string): Promise<UserQuotaStatus[]> {
     try {
-      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+      const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
       const quotaStatuses: UserQuotaStatus[] = [];
-      
+
       for (const model of models) {
         const status = await this.getUserQuotaStatus(userId, model);
         if (status) {
           quotaStatuses.push(status);
         }
       }
-      
+
       return quotaStatuses;
     } catch (error) {
       this.logger.error('Failed to get user quota status for all models:', error);
@@ -530,7 +530,7 @@ export class DatabaseTokenTrackerService {
   async resetUserUsage(userId: string, modelName?: string): Promise<void> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
-      
+
       let updateQuery = supabase
         .from('user_token_usage_summary')
         .update({
@@ -541,18 +541,18 @@ export class DatabaseTokenTrackerService {
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId);
-      
+
       if (modelName) {
         updateQuery = updateQuery.eq('model_name', modelName);
       }
-      
+
       const { error } = await updateQuery;
-      
+
       if (error) {
         this.logger.error('Failed to reset user usage:', error);
         throw error;
       }
-      
+
       this.logger.log(`🔄 Reset usage for user: ${userId}${modelName ? ` model: ${modelName}` : ''}`);
     } catch (error) {
       this.logger.error('Failed to reset user usage:', error);
@@ -583,23 +583,23 @@ export class DatabaseTokenTrackerService {
   async cleanupOldRecords(): Promise<void> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
-      
+
       // Delete token usage records older than 30 days
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      
+
       const { error: recordsError } = await supabase
         .from('token_usage_records')
         .delete()
         .lt('created_at', thirtyDaysAgo);
-      
+
       if (recordsError) {
         this.logger.error('Failed to cleanup old token records:', recordsError);
         throw recordsError;
       }
-      
+
       // Reset usage summaries that haven't been updated in the last hour
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      
+
       const { error: summaryError } = await supabase
         .from('user_token_usage_summary')
         .update({
@@ -610,12 +610,12 @@ export class DatabaseTokenTrackerService {
           updated_at: new Date().toISOString()
         })
         .lt('updated_at', oneHourAgo);
-      
+
       if (summaryError) {
         this.logger.error('Failed to reset old usage summaries:', summaryError);
         throw summaryError;
       }
-      
+
       this.logger.log('🧹 Cleaned up old token usage records');
     } catch (error) {
       this.logger.error('Failed to cleanup old records:', error);

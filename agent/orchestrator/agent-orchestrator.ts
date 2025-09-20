@@ -21,7 +21,7 @@ export class AgentOrchestrator {
   private specialists: Map<string, BaseSpecialistAgent> = new Map();
   private taskRouter: TaskRouter = new TaskRouter();
   private coordinationHistory: CoordinationStep[] = [];
-  private model = google('gemini-2.0-flash');
+  private model = google('gemini-2.5-flash');
 
   // Helper method to transform progress messages - keep simple for real-time streaming
   private transformProgressMessage(message: string): string {
@@ -67,7 +67,7 @@ export class AgentOrchestrator {
     // Remove technical agent names and make friendly
     transformed = transformed
       .replace(/DataOrganizerAgent/g, 'spreadsheet helper')
-      .replace(/ResearchAgent/g, 'researcher')  
+      .replace(/ResearchAgent/g, 'researcher')
       .replace(/ProfessorResearchAgent/g, 'professor finder')
       .replace(/CommunicationAgent/g, 'email helper')
       .replace(/PostgradApplicationAgent/g, 'profile helper')
@@ -99,29 +99,29 @@ export class AgentOrchestrator {
     onProgress?: (update: string) => void
   ): Promise<OrchestrationResult> {
     const startTime = Date.now();
-    
+
     try {
       onProgress?.(this.transformProgressMessage('🎯 Analyzing request and creating execution plan...'));
-      
+
       // Step 1: Route the task to appropriate specialists
       const routingPlan = await this.createRoutingPlan(userMessage, context);
-      
+
       onProgress?.(this.transformProgressMessage(`📋 Plan created: ${routingPlan.primaryAgent} will lead with ${routingPlan.supportingAgents.length} supporting agents`));
-      
+
       // Step 2: Execute the routing plan
       const executionResults = await this.executeRoutingPlan(routingPlan, context, (msg) => {
         if (onProgress) onProgress(this.transformProgressMessage(msg));
       });
-      
+
       onProgress?.(this.transformProgressMessage('🔧 Synthesizing results from all specialists...'));
-      
+
       // Step 3: Combine user-friendly results from specialists
       const finalResponse = await this.synthesizeResults(executionResults, userMessage, context);
-      
+
       const totalExecutionTime = Date.now() - startTime;
-      const totalTokensUsed = executionResults.reduce((sum, result) => 
+      const totalTokensUsed = executionResults.reduce((sum, result) =>
         sum + (result.metadata.tokensUsed || 0), 0);
-      
+
       return {
         success: true,
         finalResponse,
@@ -133,7 +133,7 @@ export class AgentOrchestrator {
 
     } catch (error) {
       onProgress?.(`❌ Orchestration error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
+
       return {
         success: false,
         finalResponse: `I encountered an error coordinating the specialist agents: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -171,17 +171,17 @@ export class AgentOrchestrator {
     onProgress?: (update: string) => void
   ): Promise<SpecialistResult[]> {
     const results: SpecialistResult[] = [];
-    
+
     for (const task of tasks) {
       const result = await this.executeSpecializedTask(task, context, onProgress);
       results.push(result);
-      
+
       // If a critical task fails, consider stopping the sequence
       if (!result.success && task.priority === 'critical') {
         onProgress?.(`⚠️ Critical task failed, continuing with remaining tasks...`);
       }
     }
-    
+
     return results;
   }
 
@@ -193,7 +193,7 @@ export class AgentOrchestrator {
     // Group tasks by dependencies
     const independentTasks = tasks.filter(task => task.dependencies.length === 0);
     const dependentTasks = tasks.filter(task => task.dependencies.length > 0);
-    
+
     // Execute independent tasks in parallel first
     const results: SpecialistResult[] = [];
     if (independentTasks.length > 0) {
@@ -202,7 +202,7 @@ export class AgentOrchestrator {
         if (onProgress) onProgress(this.transformProgressMessage(msg));
       }));
     }
-    
+
     // Then execute dependent tasks sequentially
     if (dependentTasks.length > 0) {
       onProgress?.(this.transformProgressMessage(`🔄 Executing ${dependentTasks.length} dependent tasks sequentially...`));
@@ -210,7 +210,7 @@ export class AgentOrchestrator {
         if (onProgress) onProgress(this.transformProgressMessage(msg));
       }));
     }
-    
+
     return results;
   }
 
@@ -221,7 +221,7 @@ export class AgentOrchestrator {
   ): Promise<SpecialistResult> {
     // Find the best specialist for this task
     const specialist = this.selectSpecialistForTask(task);
-    
+
     if (!specialist) {
       return {
         taskId: task.id,
@@ -244,7 +244,7 @@ export class AgentOrchestrator {
     try {
       // Execute the task with the selected specialist
       const result = await specialist.executeTask(task, agentContext, onProgress);
-      
+
       // Record coordination step
       this.coordinationHistory.push({
         id: `step_${Date.now()}_${task.id}`,
@@ -320,7 +320,7 @@ export class AgentOrchestrator {
 
     // Simple combination - specialists already return user-friendly responses
     let response = '';
-    
+
     if (successfulResults.length === 1) {
       response = successfulResults[0].data;
     } else {
@@ -347,7 +347,7 @@ export class AgentOrchestrator {
     const failedResults = results.filter(r => !r.success);
 
     let synthesis = `## Response to: "${userMessage}"\n\n`;
-    
+
     if (successfulResults.length > 0) {
       synthesis += `## Results:\n\n`;
       successfulResults.forEach((result, index) => {
@@ -363,7 +363,7 @@ export class AgentOrchestrator {
     }
 
     synthesis += `\n*Coordinated by ${results.length} specialist agents*`;
-    
+
     return synthesis;
   }
 
@@ -389,21 +389,21 @@ export class AgentOrchestrator {
   ): Promise<SpecialistResult[]> {
     try {
       const results: SpecialistResult[] = [];
-      
+
       if (plan.coordinationStrategy === 'parallel') {
         // Execute tasks in parallel
         onProgress?.(this.transformProgressMessage('🔄 Executing tasks in parallel across multiple specialists...'));
         results.push(...await this.executeTasksInParallel(plan.expectedSteps, context, (msg) => {
           if (onProgress) onProgress(this.transformProgressMessage(msg));
         }));
-        
+
       } else if (plan.coordinationStrategy === 'sequential') {
         // Execute tasks sequentially  
         onProgress?.(this.transformProgressMessage('🔄 Executing tasks sequentially...'));
         results.push(...await this.executeTasksSequentially(plan.expectedSteps, context, (msg) => {
           if (onProgress) onProgress(this.transformProgressMessage(msg));
         }));
-        
+
       } else {
         // Mixed strategy - execute based on dependencies
         onProgress?.(this.transformProgressMessage('🔄 Executing mixed coordination strategy...'));

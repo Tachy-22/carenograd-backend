@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { AgentModule } from './agent/agent.module';
+import { AllocationModule } from './allocation/allocation.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AgentModule } from './agent/agent.module';
     DatabaseModule,
     AuthModule,
     AgentModule,
+    AllocationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

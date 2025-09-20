@@ -1,25 +1,25 @@
 import { generateText, streamText, stepCountIs, ToolSet, LanguageModel, ModelMessage } from 'ai';
 import { google } from '@ai-sdk/google';
 import { authContext } from '../../utils/auth-context';
-import { 
-  SpecializedTask, 
-  SpecialistResult, 
-  AgentContext, 
+import {
+  SpecializedTask,
+  SpecialistResult,
+  AgentContext,
   TaskType,
-  AgentCapability 
+  AgentCapability
 } from './types';
 
 export abstract class BaseSpecialistAgent {
   protected model: LanguageModel;
   protected tools: ToolSet;
-  
+
   abstract readonly agentName: string;
   abstract readonly specialization: string;
   abstract readonly capabilities: AgentCapability[];
   abstract readonly supportedTaskTypes: TaskType[];
 
   constructor() {
-    this.model = google('gemini-2.0-flash');
+    this.model = google('gemini-2.5-flash');
     this.tools = {} as ToolSet;
     this.setupTools();
   }
@@ -42,27 +42,27 @@ export abstract class BaseSpecialistAgent {
     if (!capability) return 0;
 
     // Score based on complexity handling and specialization
-    const complexityScore = capability.complexity === 'complex' ? 1.0 : 
-                          capability.complexity === 'moderate' ? 0.8 : 0.6;
+    const complexityScore = capability.complexity === 'complex' ? 1.0 :
+      capability.complexity === 'moderate' ? 0.8 : 0.6;
     const specializationScore = capability.taskTypes.length <= 3 ? 1.0 : 0.7; // More specialized = higher score
-    
+
     return complexityScore * specializationScore;
   }
 
   async executeTask(
-    task: SpecializedTask, 
+    task: SpecializedTask,
     context: AgentContext,
     onProgress?: (update: string) => void
   ): Promise<SpecialistResult> {
     const startTime = Date.now();
-    
+
     try {
       // Set access token if available
       if (context.accessToken) {
         console.log(`🔑 Setting access token for ${this.agentName}:`, context.accessToken.substring(0, 20) + '...');
         console.log(`🕒 Token expires at:`, context.tokenExpiresAt);
         authContext.setAccessToken(
-          context.accessToken, 
+          context.accessToken,
           context.tokenExpiresAt
         );
         console.log(`✅ Access token set successfully for ${this.agentName}`);
@@ -71,11 +71,11 @@ export abstract class BaseSpecialistAgent {
       }
 
       // Prepare conversation messages from context
-      const messages: ModelMessage[] = context.conversationHistory 
+      const messages: ModelMessage[] = context.conversationHistory
         ? context.conversationHistory.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }))
+          role: msg.role,
+          content: msg.content
+        }))
         : [];
 
       // Add current task as user message

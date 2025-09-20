@@ -5,6 +5,7 @@ import { listSpreadsheetsTool } from './list-spreadsheets';
 
 // Cell operations
 import { readCellsTool, readMultipleRangesTool } from './read-cells';
+import { readSpreadsheetByNameTool, findAndReadMultipleSheetsTool } from './read-by-name';
 import { writeCellsTool, batchWriteCellsTool, appendCellsTool } from './write-cells';
 
 // Formatting and styling
@@ -39,6 +40,8 @@ export {
   listSpreadsheetsTool,
   readCellsTool,
   readMultipleRangesTool,
+  readSpreadsheetByNameTool,
+  findAndReadMultipleSheetsTool,
   writeCellsTool,
   batchWriteCellsTool,
   appendCellsTool,
@@ -72,6 +75,8 @@ export const googleSheetsTools = {
   // Cell operations
   readCells: readCellsTool,
   readMultipleRanges: readMultipleRangesTool,
+  readSpreadsheetByName: readSpreadsheetByNameTool,
+  findAndReadMultipleSheets: findAndReadMultipleSheetsTool,
   writeCells: writeCellsTool,
   batchWriteCells: batchWriteCellsTool,
   appendCells: appendCellsTool,

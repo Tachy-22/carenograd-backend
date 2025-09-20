@@ -6,9 +6,10 @@ import { DocumentUploadService } from './document-upload.service';
 import { DatabaseTokenTrackerService } from './database-token-tracker.service';
 import { DatabaseModule } from '../database/database.module';
 import { AuthModule } from '../auth/auth.module';
+import { AllocationModule } from '../allocation/allocation.module';
 
 @Module({
-  imports: [DatabaseModule, AuthModule],
+  imports: [DatabaseModule, AuthModule, AllocationModule],
   controllers: [AgentController, UploadController],
   providers: [
     AgentService, 
