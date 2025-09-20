@@ -84,7 +84,7 @@ export class MonolithicAgent {
         console.log(`🔑 Set access token for user ${context.userId}`);
       }
 
-      onProgress?.({ message: '🎯 Analyzing your request and planning complete workflow...' });
+     // onProgress?.({ message: '🎯 Analyzing your request and planning complete workflow...' });
 
       // Prepare conversation history
       const messages = context.conversationHistory?.map(msg => ({
@@ -109,7 +109,7 @@ export class MonolithicAgent {
           keyIndex = kIndex;
 
           onProgress?.({
-            message: '🔧 Using multi-API key rotation system...',
+            message: '🔧 Thinking...',
             step: 0
           });
         } catch (error) {
@@ -119,71 +119,127 @@ export class MonolithicAgent {
         }
       }
 
-      // Execute using AI SDK v5 Multi-Step Tool Usage pattern
-      const result = await generateText({
-        model: modelToUse,
-        system: `${COMPREHENSIVE_SYSTEM_PROMPT}
+      // Execute using AI SDK v5 Multi-Step Tool Usage pattern with smart retry logic
+      let result: any;
+
+      if (this.geminiService) {
+        // Use smart retry system with quota management
+        result = await this.geminiService.generateTextAdvanced({
+          system: `${COMPREHENSIVE_SYSTEM_PROMPT}
 
 ## USER CONTEXT
 userId: ${context.userId}
 **IMPORTANT**: When calling document tools (queryDocumentMultiUserTool, listUserDocumentsTool), always use userId: "${context.userId}"`,
-        messages,
-        tools: this.allTools, // ALL tools available
-        stopWhen: stepCountIs(25), // Allow for complex multi-step workflows
-        providerOptions: {
-          google: {
-            thinkingConfig: {
-              thinkingBudget: 8192,
-              includeThoughts: true,
+          messages,
+          tools: this.allTools, // ALL tools available
+          stopWhen: stepCountIs(25), // Allow for complex multi-step workflows
+          providerOptions: {
+            google: {
+              thinkingConfig: {
+                thinkingBudget: 8192,
+              //  includeThoughts: true,
+              },
             },
           },
-        },
-        onStepFinish: ({ toolCalls, text }) => {
-          currentStep++;
-          stepsUsed = currentStep;
+          onStepFinish: ({ toolCalls, text }) => {
+            if (toolCalls && toolCalls.length > 0) {
+              const newTools = toolCalls.map(tc => tc.toolName);
+              toolsUsed.push(...newTools);
 
-          if (toolCalls && toolCalls.length > 0) {
-            const newTools = toolCalls.map(tc => tc.toolName);
-            toolsUsed.push(...newTools);
+              // Only show progress if there's meaningful reasoning text
+              const hasReasoningText = text && text.trim() && text.trim().length > 20;
 
-            // Show actual agent reasoning with tool details
-            const toolDetails = toolCalls.map(tc => {
-              // Extract key details from tool arguments
-              const argSummary = this.summarizeToolArgs(tc.toolName, tc);
-              return argSummary ? `${tc.toolName}(${argSummary})` : tc.toolName;
-            }).join(', ');
-            
-            // Use agent's actual reasoning text if available, otherwise show tool details
-            const reasoningText = text && text.trim() ? text.trim() : `Using tools: ${toolDetails}`;
-            
-            onProgress?.({
-              message: `💭 Step ${currentStep}: ${reasoningText}`,
-              step: currentStep,
-              toolsUsed: newTools
-            });
-          } else if (text && text.trim()) {
-            // Show agent's reasoning when no tools are called
-            onProgress?.({
-              message: `🧠 Step ${currentStep}: ${text.trim()}`,
-              step: currentStep
-            });
-          } else {
-            onProgress?.({
-              message: `⚡ Step ${currentStep}: Processing and analyzing...`,
-              step: currentStep
-            });
+              if (hasReasoningText) {
+                currentStep++;
+                stepsUsed = currentStep;
+
+                onProgress?.({
+                  message: `${text.trim()}`,
+                  step: currentStep,
+                  toolsUsed: newTools
+                });
+              }
+              // Skip progress update for tool-only steps without reasoning
+
+            } else if (text && text.trim() && text.trim().length > 20) {
+              // Show agent's reasoning when no tools are called (if substantial)
+              currentStep++;
+              stepsUsed = currentStep;
+
+              onProgress?.({
+                message: `${text.trim()}`,
+                step: currentStep
+              });
+            }
+            // Skip empty or very short text updates
+          },
+          userId: context.userId,
+          onProgress: (update) => {
+            // Forward quota/retry messages to user
+            onProgress?.({ message: update });
           }
-        }
-      });
+        });
 
-      // Track successful usage if using multi-API system
-      if (this.geminiService && keyIndex !== undefined) {
-        await this.geminiService.trackSuccessfulUsage(context.userId, keyIndex);
+      } else {
+        // Fallback to single key system
+        result = await generateText({
+          model: modelToUse,
+          system: `${COMPREHENSIVE_SYSTEM_PROMPT}
+
+## USER CONTEXT
+userId: ${context.userId}
+**IMPORTANT**: When calling document tools (queryDocumentMultiUserTool, listUserDocumentsTool), always use userId: "${context.userId}"`,
+          messages,
+          tools: this.allTools, // ALL tools available
+          stopWhen: stepCountIs(25), // Allow for complex multi-step workflows
+          providerOptions: {
+            google: {
+              thinkingConfig: {
+                thinkingBudget: 8192,
+                includeThoughts: true,
+              },
+            },
+          },
+          onStepFinish: ({ toolCalls, text }) => {
+            if (toolCalls && toolCalls.length > 0) {
+              const newTools = toolCalls.map(tc => tc.toolName);
+              toolsUsed.push(...newTools);
+
+              // Only show progress if there's meaningful reasoning text
+              const hasReasoningText = text && text.trim() && text.trim().length > 20;
+
+              if (hasReasoningText) {
+                currentStep++;
+                stepsUsed = currentStep;
+
+                onProgress?.({
+                  message: `💭 ${text.trim()}`,
+                  step: currentStep,
+                  toolsUsed: newTools
+                });
+              }
+              // Skip progress update for tool-only steps without reasoning
+
+            } else if (text && text.trim() && text.trim().length > 20) {
+              // Show agent's reasoning when no tools are called (if substantial)
+              currentStep++;
+              stepsUsed = currentStep;
+
+              onProgress?.({
+                message: `🧠  ${text.trim()}`,
+                step: currentStep
+              });
+            }
+            // Skip empty or very short text updates
+          }
+        });
+
+        // Note: Usage tracking is handled internally by generateTextAdvanced
       }
 
       const response = await result.text;
 
-      onProgress?.({ message: '✅ Complete workflow executed successfully!' });
+     // onProgress?.({ message: '✅ Complete workflow executed successfully!' });
 
       return {
         success: true,
@@ -219,7 +275,7 @@ userId: ${context.userId}
     try {
       // Handle different tool call formats
       const args = toolCall.args || toolCall.parameters || {};
-      
+
       switch (toolName) {
         case 'queryDocumentMultiUserTool':
           return `query: "${args.query || 'documents'}"`;
@@ -250,30 +306,7 @@ userId: ${context.userId}
     }
   }
 
-  /**
-   * Generate contextual progress messages based on tools being used
-   */
-  private generateProgressMessage(toolNames: string[], step: number): string {
-    const toolCategories = this.categorizeTools(toolNames);
 
-    if (toolCategories.documents.length > 0) {
-      return `📄 Step ${step}: Analyzing your documents and background...`;
-    }
-
-    if (toolCategories.research.length > 0 || toolCategories.googlesearch.length > 0) {
-      return `🔍 Step ${step}: Researching professors and university information...`;
-    }
-
-    if (toolCategories.sheets.length > 0) {
-      return `📊 Step ${step}: Setting up/updating your application tracking system...`;
-    }
-
-    if (toolCategories.gmail.length > 0) {
-      return `✉️ Step ${step}: Working on email drafts and communication...`;
-    }
-
-    return `🔧 Step ${step}: Using ${toolNames.join(', ')}`;
-  }
 
   /**
    * Categorize tools for progress messaging
