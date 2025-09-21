@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Strategy, VerifyCallback, StrategyOptions } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 
@@ -22,7 +22,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         'https://www.googleapis.com/auth/gmail.modify',
         'https://www.googleapis.com/auth/drive.file',
       ],
-    });
+    } as StrategyOptions);
   }
 
   authenticate(req: any, options?: any): void {
