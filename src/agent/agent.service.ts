@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MonolithicAgent } from '../../agent-monolith/monolithic-agent';
 import { DatabaseService, User } from '../database/database.service';
 import { DatabaseTokenTrackerService } from './database-token-tracker.service';
 import { AuthService } from '../auth/auth.service';
-import { GeminiWithKeyPoolService } from '../services/gemini-with-key-pool.service';
+import { AgentCacheService } from './agent-cache.service';
 
 export interface ChatRequest {
   message: string;
@@ -24,7 +23,7 @@ export class AgentService {
     private readonly databaseService: DatabaseService,
     private readonly databaseTokenTrackerService: DatabaseTokenTrackerService,
     private readonly authService: AuthService,
-    private readonly geminiService: GeminiWithKeyPoolService
+    private readonly agentCacheService: AgentCacheService
   ) { }
 
   async chatStream(user: User, request: ChatRequest, onProgress: (update: string) => void): Promise<ChatResponse> {
@@ -34,8 +33,8 @@ export class AgentService {
   async chat(user: User, request: ChatRequest, onProgress?: (update: string) => void): Promise<ChatResponse> {
     const { message, conversationId } = request;
 
-    // Create a new monolithic agent instance for this user with multi-API allocation
-    const agent = new MonolithicAgent(this.geminiService);
+    // Get cached agent instance for this user (avoids tool reloading)
+    const agent = this.agentCacheService.getAgent(user.id);
 
     // Get or create conversation
     let conversation;
@@ -60,16 +59,18 @@ export class AgentService {
       content: message,
     });
 
-    // Load conversation history for context
-    const conversationMessages = await this.databaseService.getConversationMessages(conversation.id, user.id);
+    // Load conversation history for context (limit to last 20 messages for performance)
+    const [conversationMessages, validAccessToken] = await Promise.all([
+      this.databaseService.getConversationMessages(conversation.id, user.id, 20), // Limit history
+      this.authService.getValidAccessToken(user)
+    ]);
+
     const conversationHistory = conversationMessages.map(msg => ({
       role: msg.role as 'user' | 'assistant',
       content: msg.content,
       timestamp: new Date(msg.created_at)
     }));
 
-    // Get a valid access token for Google API calls
-    const validAccessToken = await this.authService.getValidAccessToken(user);
     console.log(`🔍 User ${JSON.stringify(user)} access token:`, validAccessToken ? validAccessToken.substring(0, 20) + '...' : 'NULL');
     console.log(`🔍 User token expires at:`, user.token_expires_at);
 
@@ -110,7 +111,7 @@ export class AgentService {
         throw new Error(`Agent execution failed: ${agentResult.errors?.join(', ') || 'Unknown error'}`);
       }
 
-      // Store assistant response
+      // Store assistant response and record usage in parallel
       const assistantMessage = await this.databaseService.createMessage({
         conversation_id: conversation.id,
         user_id: user.id,
@@ -124,24 +125,24 @@ export class AgentService {
         },
       });
 
-      // Record token usage estimate (monolithic agent pattern)
+      // Record token usage and update conversation in parallel (don't block response)
       const estimatedTokens = Math.max(100, message.length * 2 + agentResult.response.length);
-      await this.databaseTokenTrackerService.recordTokenUsage({
-        promptTokens: Math.floor(estimatedTokens * 0.7),
-        completionTokens: Math.floor(estimatedTokens * 0.3),
-        totalTokens: estimatedTokens,
-        model: 'gemini-2.5-flash',
-        userId: user.id,
-        conversationId: conversation.id,
-        messageId: assistantMessage.id
-      });
-
-      // Update conversation timestamp
-      await this.databaseService.updateConversation(
-        conversation.id,
-        user.id,
-        { updated_at: new Date() }
-      );
+      Promise.all([
+        this.databaseTokenTrackerService.recordTokenUsage({
+          promptTokens: Math.floor(estimatedTokens * 0.7),
+          completionTokens: Math.floor(estimatedTokens * 0.3),
+          totalTokens: estimatedTokens,
+          model: 'gemini-2.5-flash',
+          userId: user.id,
+          conversationId: conversation.id,
+          messageId: assistantMessage.id
+        }),
+        this.databaseService.updateConversation(
+          conversation.id,
+          user.id,
+          { updated_at: new Date() }
+        )
+      ]).catch(error => this.logger.error('Background task failed:', error));
 
       return {
         response: agentResult.response,

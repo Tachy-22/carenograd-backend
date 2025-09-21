@@ -36,7 +36,7 @@ export class AgentAllocationIntegrationService {
   constructor(
     private readonly geminiService: GeminiWithKeyPoolService,
     private readonly allocationService: MultiApiAllocationService,
-  ) {}
+  ) { }
 
   /**
    * Main method to make AI requests with automatic allocation and key pool management
@@ -47,7 +47,7 @@ export class AgentAllocationIntegrationService {
       // 1. Check allocation first
       const allocationCheck = await this.allocationService.canUserMakeRequest(
         options.userId,
-        'gemini-2.5'
+        'gemini-2.5-flash'
       );
 
       if (!allocationCheck.allowed) {
@@ -64,7 +64,7 @@ export class AgentAllocationIntegrationService {
 
       // 2. Make the AI request with automatic key rotation
       let result;
-      
+
       if (options.streaming && options.messages) {
         // Streaming request
         result = await this.geminiService.streamTextWithKeyRotation({
@@ -100,7 +100,7 @@ export class AgentAllocationIntegrationService {
       // 3. Get updated allocation info
       const updatedAllocation = await this.allocationService.getDailyAllocation(
         options.userId,
-        'gemini-2.5'
+        'gemini-2.5-flash'
       );
 
       this.logger.debug(`Request successful for user ${options.userId}. Remaining: ${updatedAllocation.requestsRemainingToday}/${updatedAllocation.allocatedRequestsToday}`);
@@ -138,7 +138,7 @@ export class AgentAllocationIntegrationService {
    */
   async canMakeRequest(userId: string): Promise<{ allowed: boolean; reason?: string }> {
     try {
-      const check = await this.allocationService.canUserMakeRequest(userId, 'gemini-2.5');
+      const check = await this.allocationService.canUserMakeRequest(userId, 'gemini-2.5-flash');
       return {
         allowed: check.allowed,
         reason: check.reason,
@@ -157,7 +157,7 @@ export class AgentAllocationIntegrationService {
    */
   async getAllocationStatus(userId: string): Promise<any> {
     try {
-      return await this.allocationService.getDailyAllocation(userId, 'gemini-2.5');
+      return await this.allocationService.getDailyAllocation(userId, 'gemini-2.5-flash');
     } catch (error) {
       this.logger.error(`Failed to get allocation status for user ${userId}:`, error);
       throw error;

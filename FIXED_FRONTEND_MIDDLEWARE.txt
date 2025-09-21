@@ -1,0 +1,102 @@
+// FIXED NEXT.JS MIDDLEWARE FOR OAUTH FLOW
+// Replace your existing middleware.ts with this code
+
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+
+// Routes that require authentication
+const protectedRoutes = ['/chat', '/dashboard', '/profile']
+
+// Routes that should redirect to chat if already authenticated
+const authRoutes = ['/auth', '/login']
+
+// Public routes that don't require authentication
+const publicRoutes = ['/', '/terms', '/privacy']
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip middleware for static files, API routes, and Next.js internal routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.') ||
+    pathname.startsWith('/favicon')
+  ) {
+    return NextResponse.next()
+  }
+
+  // CRITICAL: Allow ALL auth callback routes to pass through without interference
+  if (
+    pathname.startsWith('/auth/google/callback') ||
+    pathname.startsWith('/auth/callback') ||
+    pathname === '/auth/google/callback' ||
+    pathname === '/auth/callback'
+  ) {
+    console.log('🔄 Auth callback detected, allowing through:', pathname)
+    return NextResponse.next()
+  }
+
+  // Get tokens from cookies
+  const accessToken = request.cookies.get('access_token')?.value
+  const userCookie = request.cookies.get('user')?.value
+
+  // Check if user has valid session
+  const hasValidSession = accessToken && userCookie
+
+  // Handle protected routes
+  const isProtectedRoute = protectedRoutes.some(route =>
+    pathname.startsWith(route)
+  )
+
+  if (isProtectedRoute) {
+    if (!hasValidSession) {
+      // Store the intended destination
+      const redirectUrl = new URL('/', request.url) // Changed from '/auth' to '/'
+      redirectUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    return NextResponse.next()
+  }
+
+  // Handle auth routes (login, register) - but NOT auth callbacks
+  const isAuthRoute = authRoutes.some(route =>
+    pathname.startsWith(route)
+  ) && !pathname.startsWith('/auth/callback') && !pathname.startsWith('/auth/google')
+
+  if (isAuthRoute && hasValidSession) {
+    // User is already authenticated, redirect to chat
+    const redirectTo = request.nextUrl.searchParams.get('redirect') || '/chat'
+    return NextResponse.redirect(new URL(redirectTo, request.url))
+  }
+
+  // Allow all other requests
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder files
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.).*)',
+  ],
+}
+
+// CHANGES MADE:
+// 1. Moved auth callback handling to TOP priority
+// 2. Removed conflicting token-in-URL logic
+// 3. Simplified auth route detection to avoid conflicts
+// 4. Added debugging for auth callback detection
+// 5. Changed protected route redirect from '/auth' to '/'
+
+// OAUTH FLOW SHOULD NOW BE:
+// Google → Frontend :3001/auth/google/callback → Backend :3000/auth/google/callback → Frontend /auth/callback

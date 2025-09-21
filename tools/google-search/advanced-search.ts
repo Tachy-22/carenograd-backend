@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import axios from 'axios';
 import { formatError } from '../../types/common';
+import { GoogleSearchKeyManager } from './key-rotation-manager';
 
 export const advancedSearchTool = tool({
   description: 'Perform advanced Google search with filters like date restrictions, file types, exact terms, and site-specific searches.',
@@ -21,13 +22,22 @@ export const advancedSearchTool = tool({
   }),
   execute: async ({ query, num, dateRestrict, exactTerms, excludeTerms, fileType, siteSearch, siteSearchFilter, rights, cr, safe, sort }) => {
     try {
-      const apiKey = process.env.GOOGLE_SEARCH_ENGINE_API_KEY;
+      const keyManager = GoogleSearchKeyManager.getInstance();
       const engineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
       
-      if (!apiKey || !engineId) {
+      if (!engineId) {
         return {
           success: false,
-          error: 'Google Search API credentials not configured',
+          error: 'Google Search Engine ID not configured',
+          query
+        };
+      }
+
+      const apiKey = keyManager.getAvailableKey();
+      if (!apiKey) {
+        return {
+          success: false,
+          error: 'Daily search quota exhausted across all keys',
           query
         };
       }

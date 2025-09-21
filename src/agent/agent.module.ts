@@ -4,9 +4,11 @@ import { AgentController } from './agent.controller';
 import { UploadController } from './upload.controller';
 import { DocumentUploadService } from './document-upload.service';
 import { DatabaseTokenTrackerService } from './database-token-tracker.service';
+import { AgentCacheService } from './agent-cache.service';
 import { DatabaseModule } from '../database/database.module';
 import { AuthModule } from '../auth/auth.module';
 import { AllocationModule } from '../allocation/allocation.module';
+import { GeminiWithKeyPoolService } from '../services/gemini-with-key-pool.service';
 
 @Module({
   imports: [DatabaseModule, AuthModule, AllocationModule],
@@ -14,7 +16,9 @@ import { AllocationModule } from '../allocation/allocation.module';
   providers: [
     AgentService, 
     DocumentUploadService, 
-    DatabaseTokenTrackerService
+    DatabaseTokenTrackerService,
+    AgentCacheService,
+    GeminiWithKeyPoolService
   ],
   exports: [AgentService, DocumentUploadService, DatabaseTokenTrackerService],
 })

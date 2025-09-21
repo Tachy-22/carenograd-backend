@@ -24,28 +24,43 @@ export class AuthService {
     const email = emails[0].value;
     const picture = photos?.[0]?.value;
 
+    console.log(`🔍 OAuth Callback - Access Token: ${accessToken ? 'Present' : 'Missing'}`);
+    console.log(`🔍 OAuth Callback - Refresh Token: ${refreshToken ? 'Present' : 'Missing'}`);
+
     // Check if user exists
     let user = await this.databaseService.findUserByGoogleId(googleId);
 
     if (!user) {
       // Create new user
+      console.log(`👤 Creating new user with refresh token: ${refreshToken ? 'Yes' : 'No'}`);
       user = await this.databaseService.createUser({
         email,
         google_id: googleId,
         name: displayName,
         picture,
         access_token: accessToken,
-        refresh_token: refreshToken,
+        refresh_token: refreshToken || undefined, // Explicitly handle missing refresh token
         token_expires_at: new Date(Date.now() + 3600 * 1000), // 1 hour from now
+        role: 'user', // Default role
+        is_active: true, // New users are active by default
+        last_login_at: new Date(), // Track login time
       });
     } else {
       // Update existing user with new tokens
-      user = await this.databaseService.updateUser(user.id, {
+      console.log(`🔄 Updating existing user with refresh token: ${refreshToken ? 'Yes' : 'No'}`);
+      const updateData: any = {
         access_token: accessToken,
-        refresh_token: refreshToken,
         token_expires_at: new Date(Date.now() + 3600 * 1000),
         picture, // Update picture in case it changed
-      });
+        last_login_at: new Date(), // Track login time
+      };
+      
+      // Only update refresh token if we received a new one
+      if (refreshToken) {
+        updateData.refresh_token = refreshToken;
+      }
+      
+      user = await this.databaseService.updateUser(user.id, updateData);
     }
 
     return user;
@@ -59,6 +74,14 @@ export class AuthService {
     };
 
     return this.jwtService.sign(payload);
+  }
+
+  verifyTokenIgnoreExpiration(token: string): JwtPayload | null {
+    try {
+      return this.jwtService.verify(token, { ignoreExpiration: true }) as JwtPayload;
+    } catch (error) {
+      return null;
+    }
   }
 
   async validateJwtPayload(payload: JwtPayload): Promise<User> {

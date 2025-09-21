@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { AgentModule } from './agent/agent.module';
 import { AllocationModule } from './allocation/allocation.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AllocationModule } from './allocation/allocation.module';
     AuthModule,
     AgentModule,
     AllocationModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

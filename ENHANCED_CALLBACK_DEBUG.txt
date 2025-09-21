@@ -1,0 +1,233 @@
+'use client'
+
+import { useEffect, Suspense, useState, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import Cookies from 'js-cookie'
+
+function CallbackContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { login } = useAuth()
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<any>({})
+  const hasProcessedRef = useRef(false)
+
+  useEffect(() => {
+    // COMPREHENSIVE DEBUGGING - Log everything
+    const currentUrl = window.location.href
+    const allParams = Object.fromEntries(searchParams.entries())
+    const token = searchParams.get('token')
+    const userParam = searchParams.get('user')
+    const error = searchParams.get('error')
+    
+    const debug = {
+      currentUrl,
+      allParams,
+      hasToken: !!token,
+      hasUser: !!userParam,
+      hasError: !!error,
+      tokenLength: token?.length || 0,
+      userLength: userParam?.length || 0,
+      searchParamsSize: searchParams.toString().length,
+      timestamp: new Date().toISOString()
+    }
+    
+    console.log('🔍 CALLBACK DEBUG INFO:', debug)
+    setDebugInfo(debug)
+    
+    // Prevent multiple runs
+    if (hasProcessedRef.current || isProcessing) {
+      console.log('⚠️ Skipping callback processing - already processed or processing')
+      return
+    }
+
+    // Wait a bit to ensure URL params are fully loaded
+    const timeoutId = setTimeout(() => {
+      handleCallback()
+    }, 100)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchParams]) // Watch searchParams changes
+
+  const handleCallback = async () => {
+    if (hasProcessedRef.current) return
+    
+    hasProcessedRef.current = true
+    setIsProcessing(true)
+    
+    console.log('🚀 Starting auth callback processing...')
+    
+    try {
+      const token = searchParams.get('token')
+      const userParam = searchParams.get('user')
+      const error = searchParams.get('error')
+      
+      console.log('📊 Final params check:', { 
+        hasToken: !!token, 
+        hasUser: !!userParam, 
+        hasError: !!error,
+        allParams: Object.fromEntries(searchParams.entries())
+      })
+
+      if (error) {
+        console.error('❌ OAuth error detected:', error)
+        router.push(`/auth?error=${error}`)
+        return
+      }
+
+      // Check if we have no relevant parameters at all
+      if (!token && !userParam && !error) {
+        console.warn('⚠️ No auth parameters found in callback')
+        
+        // Check if this might be the initial OAuth redirect from Google
+        const code = searchParams.get('code')
+        const state = searchParams.get('state')
+        
+        if (code) {
+          console.log('🔄 Found OAuth code, this seems to be Google callback, not our callback')
+          console.log('Code:', code.substring(0, 20) + '...')
+          // Let the middleware handle this
+          return
+        }
+        
+        console.log('🔙 No auth data found, redirecting to auth page')
+        router.push('/auth?error=no_callback_data')
+        return
+      }
+
+      if (!token) {
+        console.error('❌ Missing token in callback')
+        router.push('/auth?error=missing_token')
+        return
+      }
+
+      if (!userParam) {
+        console.error('❌ Missing user data in callback')
+        router.push('/auth?error=missing_user')
+        return
+      }
+
+      // Parse user data
+      console.log('📝 Parsing user data...')
+      let userData
+      try {
+        userData = JSON.parse(decodeURIComponent(userParam))
+        console.log('✅ User data parsed successfully:', userData)
+      } catch (parseError) {
+        console.error('❌ Failed to parse user data:', parseError)
+        console.error('Raw userParam:', userParam)
+        router.push('/auth?error=invalid_user_data')
+        return
+      }
+      
+      // Store in localStorage
+      localStorage.setItem('jwt_token', token)
+      localStorage.setItem('user_data', JSON.stringify(userData))
+      localStorage.setItem('access_token', token)
+      localStorage.setItem('user', JSON.stringify(userData))
+      
+      // Set cookies
+      const isProduction = process.env.NODE_ENV === 'production'
+      const cookieOptions = {
+        expires: 7,
+        secure: isProduction,
+        sameSite: 'lax' as const,
+        path: '/'
+      }
+      Cookies.set('access_token', token, cookieOptions)
+      Cookies.set('user', JSON.stringify(userData), cookieOptions)
+      
+      // Try to set server-side cookies
+      try {
+        const cookieResponse = await fetch('/api/auth/set-cookies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, user: userData })
+        })
+        
+        if (!cookieResponse.ok) {
+          console.warn('⚠️ Failed to set server cookies:', cookieResponse.status)
+        } else {
+          console.log('✅ Server cookies set successfully')
+        }
+      } catch (cookieError) {
+        console.warn('⚠️ Cookie API error:', cookieError)
+      }
+      
+      // Login with auth context
+      console.log('🔐 Calling login function...')
+      await login(token, userData)
+      console.log('✅ Login completed successfully')
+
+      // Clear URL parameters
+      try {
+        window.history.replaceState({}, '', window.location.pathname)
+        console.log('🧹 URL parameters cleared')
+      } catch (historyError) {
+        console.warn('⚠️ Could not clear URL parameters:', historyError)
+      }
+
+      // Redirect
+      const redirectTo = sessionStorage.getItem('auth_redirect') || '/chat'
+      sessionStorage.removeItem('auth_redirect')
+      
+      console.log('🎯 Redirecting to:', redirectTo)
+      
+      setTimeout(() => {
+        router.push(redirectTo)
+      }, 200) // Slightly longer delay
+
+    } catch (error) {
+      console.error('💥 Auth callback error:', error)
+      router.push('/auth?error=callback_failed')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Show debug info in development
+  if (process.env.NODE_ENV === 'development') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background p-8">
+        <div className="max-w-2xl w-full space-y-6">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <h2 className="text-xl font-semibold">Completing authentication...</h2>
+            <p className="text-muted-foreground">Please wait while we sign you in.</p>
+          </div>
+          
+          {/* Debug Info */}
+          <div className="bg-gray-100 p-4 rounded-lg text-sm">
+            <h3 className="font-semibold mb-2">Debug Info:</h3>
+            <pre className="whitespace-pre-wrap overflow-auto">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="text-center space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <h2 className="text-xl font-semibold">Completing authentication...</h2>
+        <p className="text-muted-foreground">Please wait while we sign you in.</p>
+      </div>
+    </div>
+  )
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <CallbackContent />
+    </Suspense>
+  )
+}

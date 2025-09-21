@@ -22,10 +22,18 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         'https://www.googleapis.com/auth/gmail.modify',
         'https://www.googleapis.com/auth/drive.file',
       ],
+    });
+  }
+
+  authenticate(req: any, options?: any): void {
+    // Force offline access and consent prompt
+    const opts = {
+      ...options,
       accessType: 'offline',
       prompt: 'consent',
-      approvalPrompt: 'force',
-    });
+      includeGrantedScopes: false,
+    };
+    super.authenticate(req, opts);
   }
 
   async validate(

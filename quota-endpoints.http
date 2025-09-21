@@ -1,0 +1,70 @@
+### Admin Quota Endpoints Tests
+### Use with VS Code REST Client extension or similar tools
+
+@baseUrl = http://localhost:3000
+@jwtToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNmNmMjY1Yy0zMjdlLTQ4NjAtYmQwZS04YzdlODQ2ZjliMmYiLCJlbWFpbCI6ImVudGVrdW1lamVmZnJleUBnbWFpbC5jb20iLCJuYW1lIjoiSmVmZnJleSBFbnRla3VtZSIsImlhdCI6MTc1ODQ4NjQwOSwiZXhwIjoxNzU4NTcyODA5fQ.dkWWcXlHFIuNfuaHlZ8egStqLv2Dm1Eb80WI4h0Jin8
+
+### 1. Check User Profile (should work)
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 2. System Quota Overview
+GET {{baseUrl}}/admin/quota/system-overview
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 3. Key Pool Statistics
+GET {{baseUrl}}/admin/quota/key-pool-stats
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 4. User Allocations (with pagination)
+GET {{baseUrl}}/admin/quota/users?page=1&limit=10&model=gemini-2.5-flash
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 5. Usage Trends
+GET {{baseUrl}}/admin/quota/usage-trends?days=30&model=gemini-2.5-flash
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 6. Quota Alerts
+GET {{baseUrl}}/admin/quota/alerts
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 7. Regular Admin Users (for comparison)
+GET {{baseUrl}}/admin/users?page=1&limit=5
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 8. Admin Dashboard Stats (for comparison)
+GET {{baseUrl}}/admin/dashboard/stats
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 9. Individual User Quota (replace with actual user ID)
+GET {{baseUrl}}/admin/quota/users/16cf265c-327e-4860-bd0e-8c7e846f9b2f
+Authorization: Bearer {{jwtToken}}
+
+###
+
+### 10. Update User Allocation (POST test)
+POST {{baseUrl}}/admin/quota/users/16cf265c-327e-4860-bd0e-8c7e846f9b2f/adjust
+Authorization: Bearer {{jwtToken}}
+Content-Type: application/json
+
+{
+  "userId": "16cf265c-327e-4860-bd0e-8c7e846f9b2f",
+  "modelName": "gemini-2.5-flash",
+  "dailyAllocation": 50
+}

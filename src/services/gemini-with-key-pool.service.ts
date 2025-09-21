@@ -82,7 +82,7 @@ export class GeminiWithKeyPoolService {
         
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId);
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
         }
         
         this.logger.debug(`Successfully generated text using key ${keyInfo.keyIndex}`);
@@ -149,7 +149,7 @@ export class GeminiWithKeyPoolService {
         
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId);
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
         }
         
         this.logger.debug(`Successfully started streaming text using key ${keyInfo.keyIndex}`);
@@ -200,14 +200,17 @@ export class GeminiWithKeyPoolService {
    * Create a Gemini model instance with specific API key
    */
   private createModelWithKey(apiKey: string): LanguageModel {
-    return google('gemini-2.5-flash');
+    const googleProvider = createGoogleGenerativeAI({
+      apiKey: apiKey,
+    });
+    return googleProvider('gemini-2.5-flash');
   }
 
   /**
    * Create a model instance for a specific user with allocation checking and key rotation
    * This model can be used directly with generateText() while handling quota automatically
    */
-  async createModelForUser(userId: string, modelName: string = 'gemini-2.5'): Promise<{ model: LanguageModel; keyIndex: number }> {
+  async createModelForUser(userId: string, modelName: string = 'gemini-2.5-flash'): Promise<{ model: LanguageModel; keyIndex: number }> {
     // Pre-check allocation
     const allocationCheck = await this.allocationService.canUserMakeRequest(userId, modelName);
     if (!allocationCheck.allowed) {
@@ -229,7 +232,7 @@ export class GeminiWithKeyPoolService {
   /**
    * Track usage after a successful request
    */
-  async trackSuccessfulUsage(userId: string, keyIndex: number, modelName: string = 'gemini-2.5'): Promise<void> {
+  async trackSuccessfulUsage(userId: string, keyIndex: number, modelName: string = 'gemini-2.5-flash'): Promise<void> {
     try {
       this.keyPoolService.trackSuccessfulRequest(keyIndex);
       await this.allocationService.trackUserRequest(userId, modelName);
@@ -365,7 +368,7 @@ export class GeminiWithKeyPoolService {
         
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId);
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
         }
         
         this.logger.debug(`Successfully generated text using key ${keyInfo.keyIndex} on attempt ${attempt}`);
@@ -475,7 +478,7 @@ export class GeminiWithKeyPoolService {
         
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId);
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
         }
         
         this.logger.debug(`Successfully generated advanced text using key ${keyInfo.keyIndex} on attempt ${attempt}`);

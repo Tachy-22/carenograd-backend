@@ -2,9 +2,10 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import axios from 'axios';
 import { formatError } from '../../types/common';
+import { GoogleSearchKeyManager } from './key-rotation-manager';
 
 export const webSearchTool = tool({
-  description: 'Perform a basic Google web search. Returns search results with titles, descriptions, and URLs.',
+  description: 'Perform a Google web search with automatic API key rotation. Supports 1000 daily queries across 10 keys at $0 cost.',
   inputSchema: z.object({
     query: z.string().describe('Search query (e.g., "artificial intelligence", "climate change news")'),
     num: z.number().min(1).max(10).optional().default(10).describe('Number of results to return (1-10)'),
@@ -14,14 +15,27 @@ export const webSearchTool = tool({
   }),
   execute: async ({ query, num, start, safe, lr }) => {
     try {
-      const apiKey = process.env.GOOGLE_SEARCH_ENGINE_API_KEY;
+      const keyManager = GoogleSearchKeyManager.getInstance();
       const engineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
       
-      if (!apiKey || !engineId) {
+      if (!engineId) {
         return {
           success: false,
-          error: 'Google Search API credentials not configured. Check GOOGLE_SEARCH_ENGINE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables.',
+          error: 'Google Search Engine ID not configured. Check GOOGLE_SEARCH_ENGINE_ID environment variable.',
           query
+        };
+      }
+
+      // Get available API key
+      const apiKey = keyManager.getAvailableKey();
+      
+      if (!apiKey) {
+        const stats = keyManager.getUsageStats();
+        return {
+          success: false,
+          error: `Daily search quota exhausted. Used ${stats.totalQueries}/1000 queries today. Resets at midnight UTC.`,
+          query,
+          usageStats: stats
         };
       }
       
@@ -45,8 +59,12 @@ export const webSearchTool = tool({
         }
       });
       
+      // Track successful usage
+      keyManager.trackUsage(apiKey);
+      
       const searchInfo = response.data.searchInformation || {};
       const items = response.data.items || [];
+      const usageStats = keyManager.getUsageStats();
       
       return {
         success: true,
@@ -70,9 +88,21 @@ export const webSearchTool = tool({
           currentPage: Math.ceil(start / num),
           resultsPerPage: num,
           hasNextPage: items.length === num
+        },
+        quotaInfo: {
+          queriesUsedToday: usageStats.totalQueries,
+          queriesRemaining: usageStats.remainingQueries,
+          currentKey: usageStats.currentKey
         }
       };
     } catch (error: unknown) {
+      // Track failed usage
+      const keyManager = GoogleSearchKeyManager.getInstance();
+      const apiKey = keyManager.getAvailableKey();
+      if (apiKey) {
+        keyManager.trackFailure(apiKey, error);
+      }
+      
       return {
         success: false,
         query,

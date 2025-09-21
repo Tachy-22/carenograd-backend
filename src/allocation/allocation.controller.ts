@@ -20,7 +20,7 @@ export class AllocationController {
   constructor(
     private readonly allocationService: MultiApiAllocationService,
     private readonly keyPoolService: GeminiKeyPoolService,
-  ) {}
+  ) { }
 
   /**
    * Get user's daily allocation status
@@ -29,27 +29,27 @@ export class AllocationController {
   @Get('daily')
   async getDailyAllocation(
     @Request() req: any,
-    @Query('model') model: string = 'gemini-2.5',
+    @Query('model') model: string = 'gemini-2.5-flash',
   ) {
     try {
       const userId = req.user?.id || req.user?.sub;
-      
+
       if (!userId) {
         throw new HttpException('User ID not found in token', HttpStatus.UNAUTHORIZED);
       }
 
       const allocation = await this.allocationService.getDailyAllocation(userId, model);
-      
+
       this.logger.debug(`Daily allocation for user ${userId}: ${allocation.requestsRemainingToday}/${allocation.allocatedRequestsToday}`);
-      
+
       return allocation;
     } catch (error) {
       this.logger.error('Failed to get daily allocation:', error);
-      
+
       if (error instanceof HttpException) {
         throw error;
       }
-      
+
       throw new HttpException(
         'Failed to retrieve allocation information',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -64,27 +64,27 @@ export class AllocationController {
   @Get('can-request')
   async canUserMakeRequest(
     @Request() req: any,
-    @Query('model') model: string = 'gemini-2.5',
+    @Query('model') model: string = 'gemini-2.5-flash',
   ) {
     try {
       const userId = req.user?.id || req.user?.sub;
-      
+
       if (!userId) {
         throw new HttpException('User ID not found in token', HttpStatus.UNAUTHORIZED);
       }
 
       const allocationCheck = await this.allocationService.canUserMakeRequest(userId, model);
-      
+
       this.logger.debug(`Can user ${userId} make request: ${allocationCheck.allowed}`);
-      
+
       return allocationCheck;
     } catch (error) {
       this.logger.error('Failed to check user allocation:', error);
-      
+
       if (error instanceof HttpException) {
         throw error;
       }
-      
+
       throw new HttpException(
         'Failed to check allocation status',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -100,9 +100,9 @@ export class AllocationController {
   async getSystemOverview() {
     try {
       const systemOverview = await this.allocationService.getSystemOverview();
-      
+
       this.logger.debug(`System overview: ${systemOverview.length} models`);
-      
+
       return systemOverview;
     } catch (error) {
       this.logger.error('Failed to get system overview:', error);
@@ -121,9 +121,9 @@ export class AllocationController {
   async getKeyPoolStats() {
     try {
       const stats = this.keyPoolService.getKeyPoolStats();
-      
+
       this.logger.debug(`Key pool stats: ${stats.systemStats.availableKeys}/${stats.systemStats.totalKeys} keys available`);
-      
+
       return stats;
     } catch (error) {
       this.logger.error('Failed to get key pool stats:', error);
@@ -142,7 +142,7 @@ export class AllocationController {
   async getSystemStats() {
     try {
       const stats = this.keyPoolService.getKeyPoolStats();
-      
+
       return stats.systemStats;
     } catch (error) {
       this.logger.error('Failed to get system stats:', error);
@@ -161,11 +161,11 @@ export class AllocationController {
   async checkKeysAvailable() {
     try {
       const hasAvailableKeys = this.keyPoolService.hasAvailableKeys();
-      
+
       return {
         available: hasAvailableKeys,
-        message: hasAvailableKeys 
-          ? 'API keys are available' 
+        message: hasAvailableKeys
+          ? 'API keys are available'
           : 'All API keys are currently rate limited or exhausted',
       };
     } catch (error) {
