@@ -29,7 +29,7 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-express": "^11.1.6",
-    "@nestjs/swagger": "^8.0.0",
+    "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^5.0.1",
     "@supabase/supabase-js": "^2.57.0",
     "@types/pako": "^2.0.4",
