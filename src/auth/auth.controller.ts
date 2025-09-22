@@ -23,7 +23,7 @@ export class AuthController {
   @ApiResponse({ status: 302, description: 'Redirects to Google OAuth consent screen' })
   async googleLogin(@Res() res: Response) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = !!process.env.GOOGLE_CALLBACK_URL 
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL 
 
     const scopes = [
       'email',
@@ -37,7 +37,7 @@ export class AuthController {
     // Build OAuth URL with explicit parameters to force refresh token
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri as string)}&` +
       `response_type=code&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `access_type=offline&` +
@@ -54,7 +54,7 @@ export class AuthController {
   })
   async getDebugOAuthUrl() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = !!process.env.GOOGLE_CALLBACK_URL 
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL 
 
     const scopes = [
       'email',
@@ -67,7 +67,7 @@ export class AuthController {
 
     const authUrl = `https://accounts.google.com/oauth/authorize?` +
       `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri as string)}&` +
       `response_type=code&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `access_type=offline&` +
