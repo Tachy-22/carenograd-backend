@@ -23,7 +23,7 @@ export class AuthController {
   @ApiResponse({ status: 302, description: 'Redirects to Google OAuth consent screen' })
   async googleLogin(@Res() res: Response) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/auth/google/callback';
+    const redirectUri = !!process.env.GOOGLE_CALLBACK_URL 
 
     const scopes = [
       'email',
@@ -54,7 +54,7 @@ export class AuthController {
   })
   async getDebugOAuthUrl() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/auth/google/callback';
+    const redirectUri = !!process.env.GOOGLE_CALLBACK_URL 
 
     const scopes = [
       'email',
@@ -119,7 +119,7 @@ export class AuthController {
     }
 
     // Redirect to frontend with tokens as URL parameters for direct browser access
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = process.env.FRONTEND_URL;
     const redirectUrl = new URL('/auth/google/callback', frontendUrl);
     redirectUrl.searchParams.set('token', jwtToken);
     redirectUrl.searchParams.set('user', encodeURIComponent(JSON.stringify(userData)));
@@ -266,7 +266,7 @@ export class AuthController {
       response.google = {
         error: 'refresh_token_missing',
         message: 'Google tokens cannot be refreshed. Re-authentication required.',
-        reauth_url: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/google`
+        reauth_url: `${process.env.FRONTEND_URL}/auth/google`
       };
     }
 
@@ -288,7 +288,7 @@ export class AuthController {
       hasRefreshToken: !!user.refresh_token,
       tokenExpired: user.token_expires_at ? new Date(user.token_expires_at) <= new Date() : true,
       needsReauth: !user.refresh_token || (!validToken && !user.refresh_token),
-      reauthUrl: !user.refresh_token ? `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/google` : null
+      reauthUrl: !user.refresh_token ? `${process.env.FRONTEND_URL}/auth/google` : null
     };
   }
 }
