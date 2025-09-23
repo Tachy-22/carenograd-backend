@@ -2,41 +2,44 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsUUID } from 'class-validator';
 
 export class ChatRequestDto {
-  @ApiProperty({ 
-    example: 'Hello! Can you help me find graduate programs in machine learning?', 
-    description: 'Message to send to the AI agent' 
+  @ApiProperty({
+    example: 'Hello! Can you help me find graduate programs in machine learning?',
+    description: 'Message to send to the AI agent'
   })
   @IsString()
   message: string;
 
-  @ApiProperty({ 
-    example: '550e8400-e29b-41d4-a716-446655440000', 
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440000',
     description: 'Optional conversation ID to continue existing conversation',
-    required: false 
+    required: false
   })
   @IsOptional()
-  @IsUUID()
+  // @IsUUID()
+  @IsString()
+
   conversationId?: string;
 }
 
 export class ChatResponseDto {
-  @ApiProperty({ 
-    example: 'I\'d be happy to help you find graduate programs in machine learning! Let me start by checking your background...', 
-    description: 'AI agent response message' 
+  @ApiProperty({
+    example: 'I\'d be happy to help you find graduate programs in machine learning! Let me start by checking your background...',
+    description: 'AI agent response message'
   })
   @IsString()
   response: string;
 
-  @ApiProperty({ 
-    example: '550e8400-e29b-41d4-a716-446655440000', 
-    description: 'Conversation ID for this chat session' 
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'Conversation ID for this chat session'
   })
-  @IsUUID()
+  //  @IsUUID()
+  @IsString()
   conversationId: string;
 
-  @ApiProperty({ 
-    example: '660f9500-f39c-51e5-b827-557766551001', 
-    description: 'Message ID for this specific response' 
+  @ApiProperty({
+    example: '660f9500-f39c-51e5-b827-557766551001',
+    description: 'Message ID for this specific response'
   })
   @IsUUID()
   messageId: string;
@@ -44,7 +47,9 @@ export class ChatResponseDto {
 
 export class ConversationDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000', description: 'Conversation unique identifier' })
-  @IsUUID()
+  //@IsUUID()
+  @IsString()
+
   id: string;
 
   @ApiProperty({ example: '8b276f6f-ac2d-43db-a776-ce976629d3f1', description: 'User ID who owns the conversation' })
@@ -83,10 +88,10 @@ export class MessageDto {
   @IsString()
   content: string;
 
-  @ApiProperty({ 
-    example: { toolCalls: [], usage: { totalTokens: 150 } }, 
+  @ApiProperty({
+    example: { toolCalls: [], usage: { totalTokens: 150 } },
     description: 'Additional message metadata',
-    required: false 
+    required: false
   })
   @IsOptional()
   metadata?: Record<string, any>;
@@ -106,16 +111,16 @@ export class MessagesResponseDto {
 }
 
 export class StreamingEventDto {
-  @ApiProperty({ 
-    example: 'progress', 
-    enum: ['progress', 'response', 'error'], 
-    description: 'Type of streaming event' 
+  @ApiProperty({
+    example: 'progress',
+    enum: ['progress', 'response', 'error'],
+    description: 'Type of streaming event'
   })
   type: 'progress' | 'response' | 'error';
 
-  @ApiProperty({ 
-    example: '🔧 Searching the web for "machine learning programs" to gather relevant information', 
-    description: 'Event content or message' 
+  @ApiProperty({
+    example: '🔧 Searching the web for "machine learning programs" to gather relevant information',
+    description: 'Event content or message'
   })
   content: string | ChatResponseDto;
 }
