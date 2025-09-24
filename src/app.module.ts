@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { AgentModule } from './agent/agent.module';
 import { AllocationModule } from './allocation/allocation.module';
 import { AdminModule } from './admin/admin.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AdminModule } from './admin/admin.module';
     AgentModule,
     AllocationModule,
     AdminModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

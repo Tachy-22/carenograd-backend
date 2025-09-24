@@ -200,4 +200,8 @@ export class AuthService {
     // Token is expired and no refresh token available
     return null;
   }
+
+  getDatabaseService(): DatabaseService {
+    return this.databaseService;
+  }
 }

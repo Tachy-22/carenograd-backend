@@ -131,7 +131,7 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
     summary: 'Get current user profile',
-    description: 'Retrieve authenticated user profile information. Requires JWT token in Authorization header.'
+    description: 'Retrieve authenticated user profile information including subscription tier. Requires JWT token in Authorization header.'
   })
   @ApiResponse({
     status: 200,
@@ -141,6 +141,33 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
   async getProfile(@Req() req: AuthenticatedRequest) {
     const user = req.user;
+    
+    // Get user's subscription tier information
+    let subscriptionInfo: { name?: string; display_name?: string; daily_message_limit?: number } | null = null;
+    try {
+      const supabase = this.authService.getDatabaseService().getSupabaseClient();
+      const { data } = await supabase
+        .from('users')
+        .select(`
+          subscription_tiers(
+            name,
+            display_name,
+            daily_message_limit
+          )
+        `)
+        .eq('id', user.id)
+        .single();
+      
+      if (data && data.subscription_tiers) {
+        const tierData = data.subscription_tiers as { name: string; display_name: string; daily_message_limit: number }[];
+        if (tierData && tierData.length > 0) {
+          subscriptionInfo = tierData[0];
+        }
+      }
+    } catch (error) {
+      // If subscription tables don't exist yet, continue without subscription info
+    }
+
     return {
       id: user.id,
       email: user.email,
@@ -149,6 +176,8 @@ export class AuthController {
       role: user.role,
       is_active: user.is_active,
       last_login_at: user.last_login_at,
+      subscription_tier: subscriptionInfo?.name || 'free',
+      daily_message_limit: subscriptionInfo?.daily_message_limit || 20,
       created_at: user.created_at,
     };
   }

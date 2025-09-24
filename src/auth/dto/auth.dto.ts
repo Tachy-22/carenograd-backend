@@ -19,6 +19,26 @@ export class UserProfileDto {
   @IsString()
   picture?: string;
 
+  @ApiProperty({ example: 'user', description: 'User role' })
+  @IsString()
+  role: string;
+
+  @ApiProperty({ example: true, description: 'Whether user account is active' })
+  is_active: boolean;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00.000Z', description: 'Last login date', required: false })
+  @IsOptional()
+  last_login_at?: Date;
+
+  @ApiProperty({ example: 'free', description: 'User subscription tier', required: false })
+  @IsOptional()
+  @IsString()
+  subscription_tier?: string;
+
+  @ApiProperty({ example: 20, description: 'Daily message limit for user tier', required: false })
+  @IsOptional()
+  daily_message_limit?: number;
+
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z', description: 'Account creation date' })
   created_at: Date;
 }

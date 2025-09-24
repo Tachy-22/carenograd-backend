@@ -8,10 +8,11 @@ import { AgentCacheService } from './agent-cache.service';
 import { DatabaseModule } from '../database/database.module';
 import { AuthModule } from '../auth/auth.module';
 import { AllocationModule } from '../allocation/allocation.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { GeminiWithKeyPoolService } from '../services/gemini-with-key-pool.service';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, AllocationModule],
+  imports: [DatabaseModule, AuthModule, AllocationModule, SubscriptionModule],
   controllers: [AgentController, UploadController],
   providers: [
     AgentService, 

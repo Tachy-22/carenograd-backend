@@ -1,359 +1,169 @@
-# Quota Status API Documentation
+# ⚠️ DEPRECATED - OLD QUOTA SYSTEM
 
-## Overview
+**This documentation is for the OLD token-based quota system that has been REPLACED.**
 
-The quota status system tracks token usage and request limits for users across different AI models. This document provides comprehensive details about all quota-related endpoints, their parameters, and return values.
+## 🔄 Migration Notice
 
-## Authentication
+The token-based quota system described in this document has been **completely replaced** with a new tier-based subscription system.
 
-All endpoints require JWT authentication via the `Authorization: Bearer <token>` header.
+### What Changed
 
-## Base URL
+- ❌ **OLD**: Complex token allocation divided among active users
+- ✅ **NEW**: Simple tier-based daily message limits per user
+- ❌ **OLD**: `/agent/tokens/*` endpoints for quota checking  
+- ✅ **NEW**: `/subscription/*` endpoints for quota management
 
-All endpoints are prefixed with `/agent/tokens/`
+### Replacement Documentation
 
-## Endpoints
+**Please use the new documentation instead:**
+- **[SUBSCRIPTION_API_GUIDE.md](./SUBSCRIPTION_API_GUIDE.md)** - Complete API documentation for the new system
+- **[MIGRATION_COMPLETE.md](./MIGRATION_COMPLETE.md)** - Migration guide and what changed
 
-### 1. GET `/agent/tokens/statistics`
+## New Quota System Summary
 
-**Summary:** Get comprehensive system-wide token usage statistics
+### Tier Structure
+- **Free Tier**: 20 messages per day, ₦0/month
+- **Pro Tier**: 100 messages per day, ₦3,000/month
 
-**Description:** Returns system-wide token usage statistics including total available tokens, tokens used, number of users, current model, and per-model status.
+### New Endpoints to Use Instead
 
-**Authentication:** Required (JWT Bearer token)
+| Old Endpoint (❌ Removed) | New Endpoint (✅ Use This) | Purpose |
+|---------------------------|---------------------------|---------|
+| `GET /agent/tokens/quota-status` | `GET /subscription/quota` | Check daily message quota |
+| `GET /agent/tokens/user` | `GET /auth/profile` | Get user info with tier |
+| `GET /agent/tokens/can-request/:tokens` | `GET /subscription/quota` | Check if can send message |
+| `GET /agent/tokens/statistics` | `GET /subscription/current` | Get subscription info |
 
-**Parameters:** None
+### New Response Format
 
-**Response:**
-```typescript
-SystemTokenOverview[] = [
-  {
-    modelName: string;                     // e.g., "gemini-2.0-flash"
-    totalTokensPerMinute: number;          // Total system capacity per minute
-    totalTokensUsedCurrentMinute: number;  // Currently used tokens this minute
-    systemTokensRemaining: number;         // Remaining system tokens this minute
-    activeUsersCount: number;              // Number of active users
-    tokensPerUser: number;                 // Allocated tokens per user
-    systemUsagePercentage: number;         // System usage as percentage (0-100)
-  }
-]
-```
-
-**Example Response:**
-```json
-[
-  {
-    "modelName": "gemini-2.0-flash",
-    "totalTokensPerMinute": 1000000,
-    "totalTokensUsedCurrentMinute": 150000,
-    "systemTokensRemaining": 850000,
-    "activeUsersCount": 25,
-    "tokensPerUser": 40000,
-    "systemUsagePercentage": 15.0
-  }
-]
-```
-
-### 2. GET `/agent/tokens/user`
-
-**Summary:** Get user-specific token usage statistics
-
-**Description:** Returns token usage statistics for the authenticated user including tokens used, requests made, current model, and recent usage history.
-
-**Authentication:** Required (JWT Bearer token)
-
-**Parameters:** None
-
-**Response:**
-```typescript
-{
-  tokensUsed: number;          // Tokens used in current minute
-  requestsMade: number;        // Requests made in current minute
-  currentModel: string;        // Current model being used ("gemini-2.0-flash")
-  percentageOfTotal: number;   // Quota usage percentage (0-100)
-  recentUsage: TokenUsageHistory[]; // Last 10 usage records
-}
-
-TokenUsageHistory = {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  model_name: string;
-  conversation_id?: string;
-  message_id?: string;
-  created_at: string;  // ISO date string
-}
-```
-
-**Example Response:**
+**Old Format (No longer available):**
 ```json
 {
-  "tokensUsed": 1250,
-  "requestsMade": 3,
-  "currentModel": "gemini-2.0-flash",
-  "percentageOfTotal": 3.125,
-  "recentUsage": [
-    {
-      "prompt_tokens": 300,
-      "completion_tokens": 150,
-      "total_tokens": 450,
-      "model_name": "gemini-2.0-flash",
-      "conversation_id": "conv_123",
-      "message_id": "msg_456",
-      "created_at": "2025-01-15T14:30:00Z"
-    }
-  ]
+  "tokensUsed": 1500,
+  "tokensRemaining": 8500,
+  "warningLevel": "LOW"
 }
 ```
 
-### 3. POST `/agent/tokens/reset`
-
-**Summary:** Reset user token usage
-
-**Description:** Reset token usage statistics for the authenticated user. Useful for testing or administrative purposes.
-
-**Authentication:** Required (JWT Bearer token)
-
-**Parameters:** None
-
-**Response:**
-```typescript
-{
-  message: string;  // Success message
-  userId: string;   // User ID that was reset
-}
-```
-
-**Example Response:**
+**New Format:**
 ```json
 {
-  "message": "User token usage reset successfully",
-  "userId": "user_123"
+  "can_send_message": true,
+  "messages_used": 15,
+  "daily_limit": 100, 
+  "messages_remaining": 85,
+  "tier_name": "pro",
+  "tier_display_name": "Pro"
 }
 ```
 
-### 4. GET `/agent/tokens/quota-status`
+## Frontend Migration Required
 
-**Summary:** Get detailed user quota status for frontend warnings
-
-**Description:** Returns detailed quota status including warning levels and remaining capacity. Used by frontend to show quota warnings.
-
-**Authentication:** Required (JWT Bearer token)
-
-**Parameters:** None
-
-**Response:**
-```typescript
-UserQuotaStatus = {
-  userId: string;                          // User ID
-  modelName: string;                       // Model name (e.g., "gemini-2.0-flash")
-  allocatedTokensPerMinute: number;        // Total allocated tokens per minute
-  allocatedRequestsPerMinute: number;      // Total allocated requests per minute
-  tokensUsedCurrentMinute: number;         // Tokens used in current minute
-  requestsMadeCurrentMinute: number;       // Requests made in current minute
-  tokensRemainingCurrentMinute: number;    // Tokens remaining this minute
-  requestsRemainingCurrentMinute: number;  // Requests remaining this minute
-  quotaPercentageUsed: number;            // Usage percentage (0-100)
-  warningLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; // Warning level
-  canMakeRequest: boolean;                // Whether user can make another request
-}
-```
-
-**Example Response:**
-```json
-{
-  "userId": "user_123",
-  "modelName": "gemini-2.0-flash",
-  "allocatedTokensPerMinute": 40000,
-  "allocatedRequestsPerMinute": 15,
-  "tokensUsedCurrentMinute": 1250,
-  "requestsMadeCurrentMinute": 3,
-  "tokensRemainingCurrentMinute": 38750,
-  "requestsRemainingCurrentMinute": 12,
-  "quotaPercentageUsed": 3.125,
-  "warningLevel": "LOW",
-  "canMakeRequest": true
-}
-```
-
-### 5. GET `/agent/tokens/can-request/:estimatedTokens`
-
-**Summary:** Check if user can make request with estimated tokens
-
-**Description:** Frontend can call this before making requests to check quota availability and get warnings.
-
-**Authentication:** Required (JWT Bearer token)
-
-**Parameters:**
-- `estimatedTokens` (path parameter): Number of tokens the request is estimated to use
-
-**Response:**
-```typescript
-{
-  allowed: boolean;              // Whether the request is allowed
-  reason?: string;               // Reason for denial (if not allowed)
-  quotaStatus?: UserQuotaStatus; // Current quota status
-  suggestedModel?: string;       // Alternative model suggestion (if quota exceeded)
-}
-```
-
-**Example Response (Allowed):**
-```json
-{
-  "allowed": true,
-  "quotaStatus": {
-    "userId": "user_123",
-    "modelName": "gemini-2.0-flash",
-    "allocatedTokensPerMinute": 40000,
-    "tokensUsedCurrentMinute": 1250,
-    "tokensRemainingCurrentMinute": 38750,
-    "quotaPercentageUsed": 3.125,
-    "warningLevel": "LOW",
-    "canMakeRequest": true
-  }
-}
-```
-
-**Example Response (Denied with Suggestion):**
-```json
-{
-  "allowed": false,
-  "reason": "Insufficient tokens. Need: 50000, Available: 38750",
-  "quotaStatus": { /* quota status object */ },
-  "suggestedModel": "gemini-1.5-flash"
-}
-```
-
-**Example Response (Invalid Input):**
-```json
-{
-  "allowed": false,
-  "reason": "Invalid token estimate provided"
-}
-```
-
-### 6. GET `/agent/tokens/warning-level`
-
-**Summary:** Get current warning level for frontend notifications
-
-**Description:** Returns warning level (LOW, MEDIUM, HIGH, CRITICAL) for frontend to show appropriate warnings.
-
-**Authentication:** Required (JWT Bearer token)
-
-**Parameters:** None
-
-**Response:**
-```typescript
-{
-  warningLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; // Current warning level
-  shouldWarn: boolean;           // Whether frontend should show warning
-  percentageUsed: number;        // Current usage percentage
-  tokensUsed: number;           // Tokens used in current minute
-  currentModel: string;         // Current model name
-  message: string;              // Human-readable status message
-}
-```
-
-**Example Response:**
-```json
-{
-  "warningLevel": "HIGH",
-  "shouldWarn": true,
-  "percentageUsed": 85.2,
-  "tokensUsed": 34080,
-  "currentModel": "gemini-2.0-flash",
-  "message": "You are approaching your quota limit (85.2% used)"
-}
-```
-
-## Warning Levels
-
-The system uses four warning levels based on quota usage percentage:
-
-- **LOW** (0-59%): Normal usage, no warnings
-- **MEDIUM** (60-79%): Moderate usage, informational notice
-- **HIGH** (80-94%): High usage, warning recommended
-- **CRITICAL** (95-100%): Near or at limit, immediate action required
-
-## Error Responses
-
-All endpoints may return these error codes:
-
-- **401 Unauthorized**: Invalid or missing JWT token
-- **500 Internal Server Error**: Database or system error
-
-Error response format:
-```json
-{
-  "statusCode": 401,
-  "message": "Unauthorized",
-  "error": "Unauthorized"
-}
-```
-
-## Model Names
-
-Currently supported models (in order of preference):
-
-1. `gemini-2.0-flash` (1M TPM, 15 RPM - highest limit)
-2. `gemini-1.5-flash` (250K TPM, 15 RPM)
-3. `gemini-1.5-flash-8b` (250K TPM, 15 RPM)
-4. `gemini-1.5-flash-002` (250K TPM, 15 RPM)
-5. `gemini-2.5-flash-lite` (250K TPM, 15 RPM)
-6. `gemini-2.5-flash` (250K TPM, 10 RPM - lowest limit)
-
-## Usage Notes
-
-1. **Time-based Resets**: Quotas are reset every minute automatically
-2. **Multi-user System**: Token pools are shared among all active users
-3. **Dynamic Allocation**: User quotas are dynamically allocated based on active user count
-4. **Fallback Models**: System automatically suggests alternative models when quotas are exceeded
-5. **Real-time Tracking**: All usage is tracked in real-time and reflected immediately in endpoints
-
-## Integration Example
+### Replace Old API Calls
 
 ```typescript
-// Check quota before making a request
-async function checkQuotaBeforeRequest(estimatedTokens: number) {
-  const response = await fetch(`/agent/tokens/can-request/${estimatedTokens}`, {
-    headers: { 'Authorization': `Bearer ${userToken}` }
+// ❌ REMOVE - These endpoints no longer exist
+fetch('/api/agent/tokens/quota-status')
+fetch('/api/agent/tokens/can-request/1000') 
+fetch('/api/agent/tokens/user')
+fetch('/api/agent/tokens/statistics')
+
+// ✅ REPLACE WITH - New subscription endpoints
+fetch('/api/subscription/quota')           // Check daily message quota
+fetch('/api/auth/profile')                // Get user profile with tier
+fetch('/api/subscription/current')        // Get subscription details
+fetch('/api/subscription/tiers')          // Get available tiers
+```
+
+### Update Quota Display Logic
+
+```typescript
+// ❌ OLD - Remove this logic
+interface OldQuotaStatus {
+  tokensUsed: number;
+  tokensRemaining: number;
+  warningLevel: string;
+}
+
+// ✅ NEW - Use this instead
+interface NewQuotaStatus {
+  can_send_message: boolean;
+  messages_used: number;
+  daily_limit: number;
+  messages_remaining: number;
+  tier_name: string;
+  tier_display_name: string;
+}
+
+// ✅ NEW - Usage example
+async function checkQuota() {
+  const response = await fetch('/api/subscription/quota', {
+    headers: { 'Authorization': `Bearer ${token}` }
   });
   
-  const result = await response.json();
+  const quota: NewQuotaStatus = await response.json();
   
-  if (!result.allowed) {
-    if (result.suggestedModel) {
-      console.log(`Quota exceeded. Try using ${result.suggestedModel}`);
-    } else {
-      console.log(`Request denied: ${result.reason}`);
-    }
-    return false;
-  }
+  // Show quota in UI
+  const percentage = (quota.messages_used / quota.daily_limit) * 100;
+  updateQuotaBar(percentage);
   
-  return true;
-}
-
-// Get current warning level for UI
-async function getWarningLevel() {
-  const response = await fetch('/agent/tokens/warning-level', {
-    headers: { 'Authorization': `Bearer ${userToken}` }
-  });
-  
-  const warning = await response.json();
-  
-  if (warning.shouldWarn) {
-    showWarningUI(warning.message, warning.warningLevel);
+  // Show upgrade prompt for free users near limit
+  if (quota.tier_name === 'free' && quota.messages_remaining <= 2) {
+    showUpgradePrompt();
   }
 }
 ```
 
-## Database Schema Dependencies
+## Complete Migration Guide
 
-The quota system relies on these database tables:
+For full details on migrating to the new system, see:
+- **[SUBSCRIPTION_API_GUIDE.md](./SUBSCRIPTION_API_GUIDE.md)** - Complete API reference
+- **[MIGRATION_COMPLETE.md](./MIGRATION_COMPLETE.md)** - Step-by-step migration guide
 
-- `token_pools`: System-wide token capacity configuration
-- `user_token_quotas`: Per-user quota allocations
-- `user_token_usage_summary`: Real-time usage tracking
-- `token_usage_records`: Historical usage records
+---
 
-All quota data is automatically maintained by the system with proper time-based resets and dynamic allocation.
+# OLD DOCUMENTATION (For Reference Only)
+
+*The following is the old documentation, kept for reference during migration:*
+
+## Overview (OLD SYSTEM)
+
+The quota status system tracked token usage and request limits for users across different AI models. **This system has been completely replaced and these endpoints no longer exist.**
+
+## Authentication (OLD SYSTEM)
+
+All endpoints required JWT authentication via the `Authorization: Bearer <token>` header.
+
+## Base URL (OLD SYSTEM)
+
+All endpoints were prefixed with `/agent/tokens/` - **These endpoints have been removed.**
+
+## Endpoints (OLD SYSTEM - NO LONGER AVAILABLE)
+
+### 1. ❌ GET `/agent/tokens/statistics` (REMOVED)
+
+**Status:** Endpoint removed, use `GET /subscription/current` instead
+
+### 2. ❌ GET `/agent/tokens/user` (REMOVED) 
+
+**Status:** Endpoint removed, use `GET /auth/profile` instead
+
+### 3. ❌ POST `/agent/tokens/reset` (REMOVED)
+
+**Status:** Endpoint removed, no replacement (quota resets daily automatically)
+
+### 4. ❌ GET `/agent/tokens/quota-status` (REMOVED)
+
+**Status:** Endpoint removed, use `GET /subscription/quota` instead
+
+### 5. ❌ GET `/agent/tokens/can-request/:estimatedTokens` (REMOVED)
+
+**Status:** Endpoint removed, use `GET /subscription/quota` instead
+
+### 6. ❌ GET `/agent/tokens/warning-level` (REMOVED)
+
+**Status:** Endpoint removed, quota status included in `GET /subscription/quota`
+
+---
+
+**Please update your frontend to use the new subscription system endpoints. The old token-based system is no longer available.**

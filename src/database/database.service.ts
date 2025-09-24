@@ -14,6 +14,7 @@ export interface User {
   role: 'user' | 'admin';
   is_active: boolean;
   last_login_at?: Date;
+  subscription_tier_id?: string;
   created_at: Date;
   updated_at: Date;
 }

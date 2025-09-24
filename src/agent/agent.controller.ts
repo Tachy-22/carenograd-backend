@@ -2,7 +2,7 @@ import { Controller, Post, Get, Body, Param, UseGuards, Req, Res, HttpStatus, Ht
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AgentService } from './agent.service';
-import { DatabaseTokenTrackerService } from './database-token-tracker.service';
+import { QuotaGuard } from '../subscription/quota.guard';
 import type { ChatRequest, ChatResponse } from './agent.service';
 import type { User } from '../database/database.service';
 import {
@@ -23,11 +23,11 @@ interface AuthenticatedRequest {
 @ApiBearerAuth()
 export class AgentController {
   constructor(
-    private readonly agentService: AgentService,
-    private readonly databaseTokenTrackerService: DatabaseTokenTrackerService
+    private readonly agentService: AgentService
   ) { }
 
   @Post('chat')
+  @UseGuards(QuotaGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Send message to AI agent',
@@ -40,6 +40,7 @@ export class AgentController {
     type: ChatResponseDto
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
+  @ApiResponse({ status: 403, description: 'Daily message limit exceeded - upgrade required' })
   async chat(
     @Req() req: AuthenticatedRequest,
     @Body() chatRequest: ChatRequest,
@@ -49,6 +50,7 @@ export class AgentController {
   }
 
   @Post('chat/stream')
+  @UseGuards(QuotaGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Send message to AI agent with real-time streaming',
@@ -60,6 +62,7 @@ export class AgentController {
     description: 'Streaming response with protocol version based on X-Stream-Protocol header (v1 or v2)'
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
+  @ApiResponse({ status: 403, description: 'Daily message limit exceeded - upgrade required' })
   async chatStream(
     @Req() req: AuthenticatedRequest,
     @Body() chatRequest: ChatRequest,
@@ -220,138 +223,4 @@ export class AgentController {
     return { messages };
   }
 
-  @Get('tokens/statistics')
-  @ApiOperation({
-    summary: 'Get comprehensive token usage statistics',
-    description: 'Get system-wide token usage statistics including total available tokens, tokens used, number of users, current model, and per-model status.'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Token statistics retrieved successfully'
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
-  async getTokenStatistics() {
-    return await this.databaseTokenTrackerService.getSystemTokenOverview();
-  }
-
-  @Get('tokens/user')
-  @ApiOperation({
-    summary: 'Get user-specific token usage statistics',
-    description: 'Get token usage statistics for the authenticated user including tokens used, requests made, current model, and recent usage history.'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'User token statistics retrieved successfully'
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
-  async getUserTokenStatistics(@Req() req: AuthenticatedRequest) {
-    const user = req.user;
-    const quotaStatus = await this.databaseTokenTrackerService.getUserQuotaStatus(user.id);
-    const tokenHistory = await this.databaseTokenTrackerService.getUserTokenHistory(user.id, 10);
-
-    return {
-      tokensUsed: quotaStatus?.tokensUsedCurrentMinute || 0,
-      requestsMade: quotaStatus?.requestsMadeCurrentMinute || 0,
-      currentModel: 'gemini-2.5-flash',
-      percentageOfTotal: quotaStatus?.quotaPercentageUsed || 0,
-      recentUsage: tokenHistory
-    };
-  }
-
-  @Post('tokens/reset')
-  @ApiOperation({
-    summary: 'Reset user token usage',
-    description: 'Reset token usage statistics for the authenticated user. Useful for testing or administrative purposes.'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'User token usage reset successfully'
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
-  async resetUserTokenUsage(@Req() req: AuthenticatedRequest) {
-    const user = req.user;
-    await this.databaseTokenTrackerService.resetUserUsage(user.id);
-    return { message: 'User token usage reset successfully', userId: user.id };
-  }
-
-  @Get('tokens/quota-status')
-  @ApiOperation({
-    summary: 'Get user quota status for frontend warnings',
-    description: 'Get detailed quota status including warning levels and remaining capacity. Used by frontend to show quota warnings.'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'User quota status retrieved successfully'
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
-  async getUserQuotaStatus(@Req() req: AuthenticatedRequest) {
-    const user = req.user;
-    return await this.databaseTokenTrackerService.getUserQuotaStatus(user.id);
-  }
-
-  @Get('tokens/can-request/:estimatedTokens')
-  @ApiOperation({
-    summary: 'Check if user can make request with estimated tokens',
-    description: 'Frontend can call this before making requests to check quota availability and get warnings.'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Request permission check completed'
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
-  async canUserMakeRequest(
-    @Req() req: AuthenticatedRequest,
-    @Param('estimatedTokens') estimatedTokens: string
-  ) {
-    const user = req.user;
-    const tokens = parseInt(estimatedTokens, 10);
-
-    if (isNaN(tokens) || tokens <= 0) {
-      return {
-        allowed: false,
-        reason: 'Invalid token estimate provided'
-      };
-    }
-
-    return await this.databaseTokenTrackerService.canUserMakeRequest(user.id, tokens);
-  }
-
-  @Get('tokens/warning-level')
-  @ApiOperation({
-    summary: 'Get current warning level for frontend notifications',
-    description: 'Returns warning level (LOW, MEDIUM, HIGH, CRITICAL) for frontend to show appropriate warnings.'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Warning level retrieved successfully'
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
-  async getWarningLevel(@Req() req: AuthenticatedRequest) {
-    const user = req.user;
-    const quotaStatus = await this.databaseTokenTrackerService.getUserQuotaStatus(user.id);
-
-    if (!quotaStatus) {
-      return {
-        warningLevel: 'LOW',
-        shouldWarn: false,
-        percentageUsed: 0,
-        tokensUsed: 0,
-        currentModel: 'gemini-2.5-flash',
-        message: 'No quota data available'
-      };
-    }
-
-    const shouldWarn = this.databaseTokenTrackerService.shouldWarnUser(quotaStatus);
-
-    return {
-      warningLevel: quotaStatus.warningLevel,
-      shouldWarn,
-      percentageUsed: quotaStatus.quotaPercentageUsed,
-      tokensUsed: quotaStatus.tokensUsedCurrentMinute,
-      currentModel: quotaStatus.modelName,
-      message: shouldWarn ?
-        `You are approaching your quota limit (${quotaStatus.quotaPercentageUsed.toFixed(1)}% used)` :
-        'Quota usage is within normal limits'
-    };
-  }
 }

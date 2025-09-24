@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService, User } from '../database/database.service';
-import { DatabaseTokenTrackerService } from './database-token-tracker.service';
 import { AuthService } from '../auth/auth.service';
 import { AgentCacheService } from './agent-cache.service';
 
@@ -21,7 +20,6 @@ export class AgentService {
 
   constructor(
     private readonly databaseService: DatabaseService,
-    private readonly databaseTokenTrackerService: DatabaseTokenTrackerService,
     private readonly authService: AuthService,
     private readonly agentCacheService: AgentCacheService
   ) { }
@@ -83,18 +81,8 @@ export class AgentService {
     };
 
     try {
-      // Check quota before making request
-      const estimatedTokensForQuota = Math.min(8000, message.length * 4);
-      const quotaCheck = await this.databaseTokenTrackerService.canUserMakeRequest(user.id, estimatedTokensForQuota);
-
-      if (!quotaCheck.allowed && !quotaCheck.suggestedModel) {
-        throw new Error(`Request blocked: ${quotaCheck.reason}. No alternative models available.`);
-      }
-
-      if (!quotaCheck.allowed && quotaCheck.suggestedModel) {
-        this.logger.warn(`Quota exceeded for user ${user.id}: ${quotaCheck.reason}. Using suggested model: ${quotaCheck.suggestedModel}`);
-        onProgress?.(`🔄 Switching to optimized model due to quota limits...`);
-      }
+      // Note: Quota enforcement is now handled by QuotaGuard middleware
+      // before this method is called, so we can proceed with the request
 
       // Execute task through monolithic agent with complete workflow capability
       const agentResult = await agent.executeTask(message, userContext, (update) => {
@@ -125,18 +113,9 @@ export class AgentService {
         },
       });
 
-      // Record token usage and update conversation in parallel (don't block response)
-      const estimatedTokens = Math.max(100, message.length * 2 + agentResult.response.length);
+      // Update conversation title in parallel (don't block response)
+      // Note: Message counting is now handled by QuotaGuard middleware
       Promise.all([
-        this.databaseTokenTrackerService.recordTokenUsage({
-          promptTokens: Math.floor(estimatedTokens * 0.7),
-          completionTokens: Math.floor(estimatedTokens * 0.3),
-          totalTokens: estimatedTokens,
-          model: 'gemini-2.5-flash',
-          userId: user.id,
-          conversationId: conversation.id,
-          messageId: assistantMessage.id
-        }),
         this.databaseService.updateConversation(
           conversation.id,
           user.id,
