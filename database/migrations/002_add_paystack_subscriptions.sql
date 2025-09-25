@@ -50,7 +50,7 @@ BEGIN
   SELECT 
     st.name as tier_name, 
     st.daily_message_limit as tier_daily_limit,
-    us.status as subscription_status,
+    us.status,
     us.current_period_end,
     us.grace_period_end
   INTO user_tier
@@ -63,7 +63,7 @@ BEGIN
   
   -- If no active subscription, default to free tier
   IF user_tier IS NULL THEN
-    SELECT name, daily_message_limit as tier_daily_limit INTO user_tier
+    SELECT name as tier_name, daily_message_limit as tier_daily_limit, NULL as status, NULL as current_period_end, NULL as grace_period_end INTO user_tier
     FROM subscription_tiers 
     WHERE name = 'free' 
     LIMIT 1;
@@ -75,12 +75,12 @@ BEGIN
   END IF;
   
   -- Check if subscription is expired but within grace period
-  IF user_tier.subscription_status = 'past_due' AND 
+  IF user_tier.status = 'past_due' AND 
      user_tier.grace_period_end IS NOT NULL AND 
      user_tier.grace_period_end > NOW() THEN
     -- Allow usage during grace period
     NULL;
-  ELSIF user_tier.subscription_status = 'past_due' THEN
+  ELSIF user_tier.status = 'past_due' THEN
     -- Grace period expired, revert to free tier
     SELECT daily_message_limit INTO user_tier.tier_daily_limit
     FROM subscription_tiers 

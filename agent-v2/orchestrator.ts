@@ -13,7 +13,7 @@ import { UserContext, TaskPlan, ExecutionResult, ProgressUpdate } from './types'
 import { getSystemPrompt } from './system-prompts';
 
 export class OrchestratorWorker {
-  private model = google('gemini-2.5-flash');
+  private model = google('gemini-2.0-flash');
   private allTools: Record<string, any> = {};
 
   constructor() {

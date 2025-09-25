@@ -156,7 +156,7 @@ export class DatabaseTokenTrackerService {
   /**
    * Get user's current quota status for a specific model
    */
-  async getUserQuotaStatus(userId: string, modelName: string = 'gemini-2.5-flash'): Promise<UserQuotaStatus | null> {
+  async getUserQuotaStatus(userId: string, modelName: string = 'gemini-2.0-flash'): Promise<UserQuotaStatus | null> {
     try {
       const supabase = this.databaseService.getSupabaseClient();
 
@@ -336,7 +336,7 @@ export class DatabaseTokenTrackerService {
   /**
    * Check if user can make a request with estimated token usage
    */
-  async canUserMakeRequest(userId: string, estimatedTokens: number, modelName: string = 'gemini-2.5-flash'): Promise<{
+  async canUserMakeRequest(userId: string, estimatedTokens: number, modelName: string = 'gemini-2.0-flash'): Promise<{
     allowed: boolean;
     reason?: string;
     quotaStatus?: UserQuotaStatus;
@@ -392,7 +392,7 @@ export class DatabaseTokenTrackerService {
    */
   async findAvailableModelForUser(userId: string, estimatedTokens: number): Promise<string | null> {
     try {
-      const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
 
       for (const model of models) {
         const quotaStatus = await this.getUserQuotaStatus(userId, model);
@@ -507,7 +507,7 @@ export class DatabaseTokenTrackerService {
    */
   async getUserAllModelsQuotaStatus(userId: string): Promise<UserQuotaStatus[]> {
     try {
-      const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash-002', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
       const quotaStatuses: UserQuotaStatus[] = [];
 
       for (const model of models) {

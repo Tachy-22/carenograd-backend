@@ -7,7 +7,8 @@ import {
   webScrapingTools,
   ragTools,
   documentManagementTools,
-  googleSearchTools
+  googleSearchTools,
+  semanticScholarTools
 } from '../tools';
 import { authContext } from '../utils/auth-context';
 import { COMPREHENSIVE_SYSTEM_PROMPT } from './comprehensive-system-prompt';
@@ -39,7 +40,7 @@ export interface ProgressUpdate {
 }
 
 export class MonolithicAgent {
-  private model = google('gemini-2.5-flash');
+  private model = google('gemini-2.0-flash');
   private allTools: Record<string, any> = {};
   private logger = console; // Simple logger for now
 
@@ -55,7 +56,8 @@ export class MonolithicAgent {
       ...webScrapingTools,
       ...ragTools,
       ...documentManagementTools,
-      ...googleSearchTools
+      ...googleSearchTools,
+      ...semanticScholarTools
     };
 
     const toolNames = Object.keys(this.allTools);
@@ -84,7 +86,7 @@ export class MonolithicAgent {
         console.log(`🔑 Set access token for user ${context.userId}`);
       }
 
-     // onProgress?.({ message: '🎯 Analyzing your request and planning complete workflow...' });
+      // onProgress?.({ message: '🎯 Analyzing your request and planning complete workflow...' });
 
       // Prepare conversation history
       const messages = context.conversationHistory?.map(msg => ({
@@ -132,15 +134,15 @@ userId: ${context.userId}
 **IMPORTANT**: When calling document tools (queryDocumentMultiUserTool, listUserDocumentsTool), always use userId: "${context.userId}"`,
           messages,
           tools: this.allTools, // ALL tools available
-          stopWhen: stepCountIs(25), // Allow for complex multi-step workflows
-          providerOptions: {
-            google: {
-              thinkingConfig: {
-                thinkingBudget: 8192,
-              //  includeThoughts: true,
-              },
-            },
-          },
+          stopWhen: stepCountIs(50), // Allow for complex multi-step workflows
+          // providerOptions: {
+          //   google: {
+          //     thinkingConfig: {
+          //       thinkingBudget: 8192,
+          //       //  includeThoughts: true,
+          //     },
+          //   },
+          // },
           onStepFinish: ({ toolCalls, text }) => {
             if (toolCalls && toolCalls.length > 0) {
               const newTools = toolCalls.map(tc => tc.toolName);
@@ -239,7 +241,7 @@ userId: ${context.userId}
 
       const response = await result.text;
 
-     // onProgress?.({ message: '✅ Complete workflow executed successfully!' });
+      // onProgress?.({ message: '✅ Complete workflow executed successfully!' });
 
       return {
         success: true,
@@ -279,8 +281,18 @@ userId: ${context.userId}
       switch (toolName) {
         case 'queryDocumentMultiUserTool':
           return `query: "${args.query || 'documents'}"`;
-        case 'semanticScholarSearchTool':
-          return `search: "${args.query || args.searchQuery || 'research'}"`;
+        case 'searchAuthorsTool':
+          return `author search: "${args.query || 'author name'}"`;
+        case 'searchPapersTool':
+          return `paper search: "${args.query || 'research topic'}"`;
+        case 'getAuthorTool':
+          return `get author: ${args.authorId || 'author ID'}`;
+        case 'getAuthorPapersTool':
+          return `get papers by: ${args.authorId || 'author ID'}`;
+        case 'getPaperTool':
+          return `get paper: ${args.paperId || 'paper ID'}`;
+        case 'getRecommendationsTool':
+          return `recommendations for: ${args.paperId || 'paper ID'}`;
         case 'googleSearchTool':
           return `search: "${args.query || args.q || 'web search'}"`;
         case 'createSpreadsheetTool':

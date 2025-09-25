@@ -29,7 +29,7 @@ export class AllocationController {
   @Get('daily')
   async getDailyAllocation(
     @Request() req: any,
-    @Query('model') model: string = 'gemini-2.5-flash',
+    @Query('model') model: string = 'gemini-2.0-flash',
   ) {
     try {
       const userId = req.user?.id || req.user?.sub;
@@ -64,7 +64,7 @@ export class AllocationController {
   @Get('can-request')
   async canUserMakeRequest(
     @Request() req: any,
-    @Query('model') model: string = 'gemini-2.5-flash',
+    @Query('model') model: string = 'gemini-2.0-flash',
   ) {
     try {
       const userId = req.user?.id || req.user?.sub;

@@ -12,7 +12,7 @@ export class AdminService {
     private readonly databaseService: DatabaseService,
     private readonly allocationService: MultiApiAllocationService,
     private readonly keyPoolService: GeminiKeyPoolService,
-  ) {}
+  ) { }
 
   /**
    * Get comprehensive system health and usage metrics
@@ -27,8 +27,8 @@ export class AdminService {
     ]);
 
     // Calculate growth rates
-    const userGrowthRate = userStats.newUsersThisWeek > 0 
-      ? ((userStats.newUsersThisWeek - userStats.newUsersToday) / userStats.newUsersThisWeek) * 100 
+    const userGrowthRate = userStats.newUsersThisWeek > 0
+      ? ((userStats.newUsersThisWeek - userStats.newUsersToday) / userStats.newUsersThisWeek) * 100
       : 0;
 
     const conversationGrowthRate = conversationStats.conversationsThisWeek > 0
@@ -48,8 +48,8 @@ export class AdminService {
       },
       messages: {
         ...messageStats,
-        avgMessagesPerConversation: conversationStats.totalConversations > 0 
-          ? messageStats.totalMessages / conversationStats.totalConversations 
+        avgMessagesPerConversation: conversationStats.totalConversations > 0
+          ? messageStats.totalMessages / conversationStats.totalConversations
           : 0,
       },
       systemHealth: {
@@ -123,9 +123,9 @@ export class AdminService {
   /**
    * Get user allocations for all users
    */
-  async getUserAllocations(modelName: string = 'gemini-2.5-flash'): Promise<UserAllocationDto[]> {
+  async getUserAllocations(modelName: string = 'gemini-2.0-flash'): Promise<UserAllocationDto[]> {
     this.logger.log(`Getting user allocations for model: ${modelName}`);
-    
+
     try {
       const users = await this.databaseService.getAllUsers(1000, 0);
       const allocations: UserAllocationDto[] = [];
@@ -174,17 +174,17 @@ export class AdminService {
   /**
    * Get system quota overview
    */
-  async getSystemQuotaOverview(modelName: string = 'gemini-2.5-flash'): Promise<SystemQuotaOverviewDto> {
+  async getSystemQuotaOverview(modelName: string = 'gemini-2.0-flash'): Promise<SystemQuotaOverviewDto> {
     this.logger.log(`Getting system quota overview for model: ${modelName}`);
-    
+
     try {
       const systemOverviewArray = await this.allocationService.getSystemOverview();
       const systemOverview = systemOverviewArray.find(overview => overview.modelName === modelName) || systemOverviewArray[0];
-      
+
       if (!systemOverview) {
         throw new Error('No system overview data available');
       }
-      
+
       return {
         modelName: systemOverview.modelName,
         totalRequestsAvailable: systemOverview.totalRequestsAvailable,
@@ -206,13 +206,13 @@ export class AdminService {
    */
   async getKeyPoolStats(): Promise<KeyPoolStatsDto> {
     this.logger.log('Getting key pool statistics');
-    
+
     try {
       const stats = this.keyPoolService.getKeyPoolStats();
       const totalKeys = stats.systemStats.totalKeys;
       const availableKeys = stats.systemStats.availableKeys;
       const rateLimitedKeys = totalKeys - availableKeys;
-      
+
       return {
         totalKeys,
         availableKeys,
@@ -233,17 +233,17 @@ export class AdminService {
    */
   async updateUserAllocation(userId: string, modelName: string, dailyAllocation: number, adminId: string) {
     this.logger.log(`Updating allocation for user ${userId}: ${dailyAllocation} requests/day for ${modelName}`);
-    
+
     // Note: This would require implementing persistent allocation updates in the allocation service
     // For now, just log the action
     await this.logAdminAction(adminId, 'UPDATE_USER_ALLOCATION', userId, {
       modelName,
       dailyAllocation,
     });
-    
-    return { 
-      success: true, 
-      message: 'Allocation update logged. Implementation requires persistent storage.' 
+
+    return {
+      success: true,
+      message: 'Allocation update logged. Implementation requires persistent storage.'
     };
   }
 

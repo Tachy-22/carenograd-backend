@@ -50,7 +50,7 @@ export class MultiApiAllocationService {
   /**
    * Get today's dynamic allocation for a user
    */
-  async getDailyAllocation(userId: string, modelName: string = 'gemini-2.5-flash'): Promise<DailyAllocation> {
+  async getDailyAllocation(userId: string, modelName: string = 'gemini-2.0-flash'): Promise<DailyAllocation> {
     try {
       const today = new Date().toISOString().split('T')[0];
 
@@ -104,7 +104,7 @@ export class MultiApiAllocationService {
   /**
    * Check if a user can make a request
    */
-  async canUserMakeRequest(userId: string, modelName: string = 'gemini-2.5-flash'): Promise<AllocationCheck> {
+  async canUserMakeRequest(userId: string, modelName: string = 'gemini-2.0-flash'): Promise<AllocationCheck> {
     try {
       const allocation = await this.getDailyAllocation(userId, modelName);
 
@@ -132,10 +132,10 @@ export class MultiApiAllocationService {
   /**
    * Track a request for a user (increment their usage)
    */
-  async trackUserRequest(userId: string, modelName: string = 'gemini-2.5-flash'): Promise<void> {
+  async trackUserRequest(userId: string, modelName: string = 'gemini-2.0-flash'): Promise<void> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       // First try to increment existing record
       const { error: incrementError } = await this.databaseService['supabase']
         .rpc('increment_user_requests', {
@@ -163,7 +163,7 @@ export class MultiApiAllocationService {
               p_model_name: modelName,
               p_date: today,
             });
-          
+
           if (retryError) {
             this.logger.error(`Failed to track request after retry for user ${userId}:`, retryError);
             throw retryError;
@@ -184,7 +184,7 @@ export class MultiApiAllocationService {
   async getSystemOverview(): Promise<SystemOverview[]> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const modelName = 'gemini-2.5-flash';
+      const modelName = 'gemini-2.0-flash';
 
       // Get active users count
       const activeUsersCount = await this.getActiveUsersToday(today);

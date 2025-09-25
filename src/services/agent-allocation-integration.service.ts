@@ -47,7 +47,7 @@ export class AgentAllocationIntegrationService {
       // 1. Check allocation first
       const allocationCheck = await this.allocationService.canUserMakeRequest(
         options.userId,
-        'gemini-2.5-flash'
+        'gemini-2.0-flash'
       );
 
       if (!allocationCheck.allowed) {
@@ -100,7 +100,7 @@ export class AgentAllocationIntegrationService {
       // 3. Get updated allocation info
       const updatedAllocation = await this.allocationService.getDailyAllocation(
         options.userId,
-        'gemini-2.5-flash'
+        'gemini-2.0-flash'
       );
 
       this.logger.debug(`Request successful for user ${options.userId}. Remaining: ${updatedAllocation.requestsRemainingToday}/${updatedAllocation.allocatedRequestsToday}`);
@@ -138,7 +138,7 @@ export class AgentAllocationIntegrationService {
    */
   async canMakeRequest(userId: string): Promise<{ allowed: boolean; reason?: string }> {
     try {
-      const check = await this.allocationService.canUserMakeRequest(userId, 'gemini-2.5-flash');
+      const check = await this.allocationService.canUserMakeRequest(userId, 'gemini-2.0-flash');
       return {
         allowed: check.allowed,
         reason: check.reason,
@@ -157,7 +157,7 @@ export class AgentAllocationIntegrationService {
    */
   async getAllocationStatus(userId: string): Promise<any> {
     try {
-      return await this.allocationService.getDailyAllocation(userId, 'gemini-2.5-flash');
+      return await this.allocationService.getDailyAllocation(userId, 'gemini-2.0-flash');
     } catch (error) {
       this.logger.error(`Failed to get allocation status for user ${userId}:`, error);
       throw error;

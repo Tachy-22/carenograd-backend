@@ -11,7 +11,7 @@ import {
 } from './types';
 
 export class TaskRouter {
-  private model = google('gemini-2.5-flash');
+  private model = google('gemini-2.0-flash');
 
   // Allow orchestrator to update the model
   setModel(modelName: string): void {

@@ -37,18 +37,18 @@ export interface StreamTextOptions {
 @Injectable()
 export class GeminiWithKeyPoolService {
   private readonly logger = new Logger(GeminiWithKeyPoolService.name);
-  
+
   constructor(
-      private readonly keyPoolService: GeminiKeyPoolService,
+    private readonly keyPoolService: GeminiKeyPoolService,
     private readonly allocationService: MultiApiAllocationService,
-  ) {}
+  ) { }
 
   /**
    * Generate text with automatic key rotation and allocation tracking
    */
   async generateTextWithKeyRotation(options: GenerateTextOptions) {
     const { userId, ...generateOptions } = options;
-    
+
     // Check allocation if userId provided
     if (userId) {
       const allocationCheck = await this.allocationService.canUserMakeRequest(userId);
@@ -56,55 +56,55 @@ export class GeminiWithKeyPoolService {
         throw new Error(`DAILY_LIMIT_EXCEEDED: ${allocationCheck.reason}`);
       }
     }
-    
+
     const maxRetries = 15;
     let lastError: any;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       const keyInfo = this.keyPoolService.getNextAvailableKey();
-      
+
       if (!keyInfo) {
         throw new Error('No available API keys. All keys are rate limited or exhausted.');
       }
-      
+
       try {
         const model = this.createModelWithKey(keyInfo.key);
-        
+
         const result = await generateText({
           model,
           prompt: generateOptions.prompt,
           system: generateOptions.system,
           temperature: generateOptions.temperature || 0.7,
         });
-        
+
         // Track successful request
         this.keyPoolService.trackSuccessfulRequest(keyInfo.keyIndex);
-        
+
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.0-flash');
         }
-        
+
         this.logger.debug(`Successfully generated text using key ${keyInfo.keyIndex}`);
         return result;
-        
+
       } catch (error) {
         this.logger.error(`Key ${keyInfo.keyIndex} failed on attempt ${attempt}:`, error);
-        
+
         // Track failed request
         this.keyPoolService.trackFailedRequest(keyInfo.keyIndex, error);
         lastError = error;
-        
+
         // If this was the last attempt, throw the error
         if (attempt === maxRetries) {
           break;
         }
-        
+
         // Wait a bit before retrying
         await this.delay(1000 * attempt);
       }
     }
-    
+
     throw new Error(`All retry attempts failed. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 
@@ -113,7 +113,7 @@ export class GeminiWithKeyPoolService {
    */
   async streamTextWithKeyRotation(options: StreamTextOptions) {
     const { userId, ...streamOptions } = options;
-    
+
     // Check allocation if userId provided
     if (userId) {
       const allocationCheck = await this.allocationService.canUserMakeRequest(userId);
@@ -121,20 +121,20 @@ export class GeminiWithKeyPoolService {
         throw new Error(`DAILY_LIMIT_EXCEEDED: ${allocationCheck.reason}`);
       }
     }
-    
+
     const maxRetries = 3;
     let lastError: any;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       const keyInfo = this.keyPoolService.getNextAvailableKey();
-      
+
       if (!keyInfo) {
         throw new Error('No available API keys. All keys are rate limited or exhausted.');
       }
-      
+
       try {
         const model = this.createModelWithKey(keyInfo.key);
-        
+
         const result = await streamText({
           model,
           messages: streamOptions.messages,
@@ -143,35 +143,35 @@ export class GeminiWithKeyPoolService {
           stopWhen: streamOptions.stopWhen,
           temperature: streamOptions.temperature || 0.7,
         });
-        
+
         // Track successful request
         this.keyPoolService.trackSuccessfulRequest(keyInfo.keyIndex);
-        
+
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.0-flash');
         }
-        
+
         this.logger.debug(`Successfully started streaming text using key ${keyInfo.keyIndex}`);
         return result;
-        
+
       } catch (error) {
         this.logger.error(`Key ${keyInfo.keyIndex} failed on attempt ${attempt}:`, error);
-        
+
         // Track failed request
         this.keyPoolService.trackFailedRequest(keyInfo.keyIndex, error);
         lastError = error;
-        
+
         // If this was the last attempt, throw the error
         if (attempt === maxRetries) {
           break;
         }
-        
+
         // Wait a bit before retrying
         await this.delay(1000 * attempt);
       }
     }
-    
+
     throw new Error(`All retry attempts failed. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 
@@ -203,14 +203,14 @@ export class GeminiWithKeyPoolService {
     const googleProvider = createGoogleGenerativeAI({
       apiKey: apiKey,
     });
-    return googleProvider('gemini-2.5-flash');
+    return googleProvider('gemini-2.0-flash');
   }
 
   /**
    * Create a model instance for a specific user with allocation checking and key rotation
    * This model can be used directly with generateText() while handling quota automatically
    */
-  async createModelForUser(userId: string, modelName: string = 'gemini-2.5-flash'): Promise<{ model: LanguageModel; keyIndex: number }> {
+  async createModelForUser(userId: string, modelName: string = 'gemini-2.0-flash'): Promise<{ model: LanguageModel; keyIndex: number }> {
     // Pre-check allocation
     const allocationCheck = await this.allocationService.canUserMakeRequest(userId, modelName);
     if (!allocationCheck.allowed) {
@@ -225,14 +225,14 @@ export class GeminiWithKeyPoolService {
 
     // Create the model with the available key
     const model = this.createModelWithKey(keyInfo.key);
-    
+
     return { model, keyIndex: keyInfo.keyIndex };
   }
 
   /**
    * Track usage after a successful request
    */
-  async trackSuccessfulUsage(userId: string, keyIndex: number, modelName: string = 'gemini-2.5-flash'): Promise<void> {
+  async trackSuccessfulUsage(userId: string, keyIndex: number, modelName: string = 'gemini-2.0-flash'): Promise<void> {
     try {
       this.keyPoolService.trackSuccessfulRequest(keyIndex);
       await this.allocationService.trackUserRequest(userId, modelName);
@@ -298,7 +298,7 @@ export class GeminiWithKeyPoolService {
     const nextMinute = new Date(now.getTime() + 60000);
     nextMinute.setSeconds(0, 0);
     const waitTime = nextMinute.getTime() - now.getTime();
-    
+
     // Add small buffer to ensure the minute has actually reset
     return Math.min(waitTime + 2000, 62000); // Max 62 seconds
   }
@@ -309,9 +309,9 @@ export class GeminiWithKeyPoolService {
   private async waitForRateLimit(error: any, onProgress?: (message: string) => void): Promise<void> {
     const waitTimeMs = this.calculateWaitTime(error);
     const waitTimeSeconds = Math.ceil(waitTimeMs / 1000);
-    
+
     this.logger.debug(`Waiting ${waitTimeSeconds}s for rate limit reset`);
-    
+
     if (onProgress) {
       for (let remaining = waitTimeSeconds; remaining > 0; remaining--) {
         onProgress(`⏳ Quota limit reached. Waiting ${remaining}s for reset...`);
@@ -327,13 +327,13 @@ export class GeminiWithKeyPoolService {
    * Generate text with smart retry logic - waits for minute quotas, switches keys for daily quotas
    */
   async generateTextWithSmartRetry(
-    options: GenerateTextOptions & { 
+    options: GenerateTextOptions & {
       onProgress?: (message: string) => void;
       maxRetries?: number;
     }
   ) {
     const { userId, onProgress, maxRetries = 3, ...generateOptions } = options;
-    
+
     // Check allocation if userId provided
     if (userId) {
       const allocationCheck = await this.allocationService.canUserMakeRequest(userId);
@@ -341,10 +341,10 @@ export class GeminiWithKeyPoolService {
         throw new Error(`DAILY_LIMIT_EXCEEDED: ${allocationCheck.reason}`);
       }
     }
-    
+
     let lastError: any;
     let currentKeyIndex: number | undefined;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // Get key info for this attempt
@@ -353,67 +353,67 @@ export class GeminiWithKeyPoolService {
           throw new Error('No available API keys. All keys are rate limited or exhausted.');
         }
         currentKeyIndex = keyInfo.keyIndex;
-        
+
         const model = this.createModelWithKey(keyInfo.key);
-        
+
         const result = await generateText({
           model,
           prompt: generateOptions.prompt,
           system: generateOptions.system,
           temperature: generateOptions.temperature || 0.7,
         });
-        
+
         // Track successful request
         this.keyPoolService.trackSuccessfulRequest(keyInfo.keyIndex);
-        
+
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.0-flash');
         }
-        
+
         this.logger.debug(`Successfully generated text using key ${keyInfo.keyIndex} on attempt ${attempt}`);
         return result;
-        
+
       } catch (error) {
         this.logger.error(`Key ${currentKeyIndex} failed on attempt ${attempt}:`, error);
         lastError = error;
-        
+
         // Track failed request if we have a key index
         if (currentKeyIndex !== undefined) {
           this.keyPoolService.trackFailedRequest(currentKeyIndex, error);
         }
-        
+
         // Handle different types of quota errors
         if (this.isMinuteQuotaError(error)) {
           onProgress?.('⚠️ Minute quota exceeded. Smart retry in progress...');
-          
+
           // Wait for minute quota reset instead of switching keys
           await this.waitForRateLimit(error, onProgress);
-          
+
           // Don't increment attempt counter for minute quota waits
           attempt--;
           continue;
-          
+
         } else if (this.isDailyQuotaError(error)) {
           onProgress?.('⚠️ Daily quota exceeded. Switching to backup API key...');
-          
+
           // For daily quota errors, continue to next iteration to try different key
           if (attempt < maxRetries) {
             await this.delay(1000 * attempt); // Brief delay before trying next key
             continue;
           }
-          
+
         } else {
           // For other errors, use progressive backoff
           if (attempt < maxRetries) {
             const backoffDelay = 1000 * Math.pow(2, attempt - 1); // Exponential backoff
-            onProgress?.(`🔄 Retrying in ${backoffDelay/1000}s... (${attempt}/${maxRetries})`);
+            onProgress?.(`🔄 Retrying in ${backoffDelay / 1000}s... (${attempt}/${maxRetries})`);
             await this.delay(backoffDelay);
           }
         }
       }
     }
-    
+
     throw new Error(`All retry attempts failed. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 
@@ -422,13 +422,13 @@ export class GeminiWithKeyPoolService {
    * Handles multi-step tool usage, thinking mode, and quota management
    */
   async generateTextAdvanced(
-    options: AdvancedGenerateTextOptions & { 
+    options: AdvancedGenerateTextOptions & {
       onProgress?: (message: string) => void;
       maxRetries?: number;
     }
   ) {
     const { userId, onProgress, maxRetries = 3, ...generateOptions } = options;
-    
+
     // Check allocation if userId provided
     if (userId) {
       const allocationCheck = await this.allocationService.canUserMakeRequest(userId);
@@ -436,10 +436,10 @@ export class GeminiWithKeyPoolService {
         throw new Error(`DAILY_LIMIT_EXCEEDED: ${allocationCheck.reason}`);
       }
     }
-    
+
     let lastError: any;
     let currentKeyIndex: number | undefined;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // Get key info for this attempt
@@ -448,9 +448,9 @@ export class GeminiWithKeyPoolService {
           throw new Error('No available API keys. All keys are rate limited or exhausted.');
         }
         currentKeyIndex = keyInfo.keyIndex;
-        
+
         const model = this.createModelWithKey(keyInfo.key);
-        
+
         // Prepare generateText options with all AI SDK v5 features
         const generateTextOptions: any = {
           model,
@@ -470,60 +470,60 @@ export class GeminiWithKeyPoolService {
             delete generateTextOptions[key];
           }
         });
-        
+
         const result = await generateText(generateTextOptions);
-        
+
         // Track successful request
         this.keyPoolService.trackSuccessfulRequest(keyInfo.keyIndex);
-        
+
         // Track allocation if userId provided
         if (userId) {
-          await this.allocationService.trackUserRequest(userId, 'gemini-2.5-flash');
+          await this.allocationService.trackUserRequest(userId, 'gemini-2.0-flash');
         }
-        
+
         this.logger.debug(`Successfully generated advanced text using key ${keyInfo.keyIndex} on attempt ${attempt}`);
         return result;
-        
+
       } catch (error) {
         this.logger.error(`Key ${currentKeyIndex} failed on attempt ${attempt}:`, error);
         lastError = error;
-        
+
         // Track failed request if we have a key index
         if (currentKeyIndex !== undefined) {
           this.keyPoolService.trackFailedRequest(currentKeyIndex, error);
         }
-        
+
         // Handle different types of quota errors
         if (this.isMinuteQuotaError(error)) {
           onProgress?.('⚠️ Minute quota exceeded. Smart retry in progress...');
-          
+
           // Wait for minute quota reset instead of switching keys
           await this.waitForRateLimit(error, onProgress);
-          
+
           // Don't increment attempt counter for minute quota waits
           attempt--;
           continue;
-          
+
         } else if (this.isDailyQuotaError(error)) {
           onProgress?.('⚠️ Daily quota exceeded. Switching to backup API key...');
-          
+
           // For daily quota errors, continue to next iteration to try different key
           if (attempt < maxRetries) {
             await this.delay(1000 * attempt); // Brief delay before trying next key
             continue;
           }
-          
+
         } else {
           // For other errors, use progressive backoff
           if (attempt < maxRetries) {
             const backoffDelay = 1000 * Math.pow(2, attempt - 1); // Exponential backoff
-            onProgress?.(`🔄 Retrying in ${backoffDelay/1000}s... (${attempt}/${maxRetries})`);
+            onProgress?.(`🔄 Retrying in ${backoffDelay / 1000}s... (${attempt}/${maxRetries})`);
             await this.delay(backoffDelay);
           }
         }
       }
     }
-    
+
     throw new Error(`All retry attempts failed. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 }

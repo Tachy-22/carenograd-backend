@@ -257,11 +257,11 @@ export class UserGrowthDataPointDto {
 }
 
 export class TimeRangeQueryDto {
-  @ApiPropertyOptional({ 
-    description: 'Number of days to include in the chart', 
-    minimum: 1, 
-    maximum: 365, 
-    default: 30 
+  @ApiPropertyOptional({
+    description: 'Number of days to include in the chart',
+    minimum: 1,
+    maximum: 365,
+    default: 30
   })
   @IsOptional()
   @Type(() => Number)
@@ -272,11 +272,11 @@ export class TimeRangeQueryDto {
 }
 
 export class MonthRangeQueryDto {
-  @ApiPropertyOptional({ 
-    description: 'Number of months to include in the chart', 
-    minimum: 1, 
-    maximum: 24, 
-    default: 12 
+  @ApiPropertyOptional({
+    description: 'Number of months to include in the chart',
+    minimum: 1,
+    maximum: 24,
+    default: 12
   })
   @IsOptional()
   @Type(() => Number)
@@ -287,11 +287,11 @@ export class MonthRangeQueryDto {
 }
 
 export class TopUsersQueryDto {
-  @ApiPropertyOptional({ 
-    description: 'Number of top users to return', 
-    minimum: 1, 
-    maximum: 50, 
-    default: 10 
+  @ApiPropertyOptional({
+    description: 'Number of top users to return',
+    minimum: 1,
+    maximum: 50,
+    default: 10
   })
   @IsOptional()
   @Type(() => Number)
@@ -438,11 +438,11 @@ export class AllocationManagementDto {
 }
 
 export class ModelQueryDto {
-  @ApiPropertyOptional({ 
-    description: 'Model name to filter by', 
-    default: 'gemini-2.5-flash' 
+  @ApiPropertyOptional({
+    description: 'Model name to filter by',
+    default: 'gemini-2.0-flash'
   })
   @IsOptional()
   @IsString()
-  model?: string = 'gemini-2.5-flash';
+  model?: string = 'gemini-2.0-flash';
 }

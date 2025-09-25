@@ -21,7 +21,7 @@ export class AgentOrchestrator {
   private specialists: Map<string, BaseSpecialistAgent> = new Map();
   private taskRouter: TaskRouter = new TaskRouter();
   private coordinationHistory: CoordinationStep[] = [];
-  private model = google('gemini-2.5-flash');
+  private model = google('gemini-2.0-flash');
 
   // Helper method to transform progress messages - keep simple for real-time streaming
   private transformProgressMessage(message: string): string {

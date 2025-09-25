@@ -19,7 +19,7 @@ export abstract class BaseSpecialistAgent {
   abstract readonly supportedTaskTypes: TaskType[];
 
   constructor() {
-    this.model = google('gemini-2.5-flash');
+    this.model = google('gemini-2.0-flash');
     this.tools = {} as ToolSet;
     this.setupTools();
   }

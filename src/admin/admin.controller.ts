@@ -1,20 +1,20 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Put, 
-  Delete, 
-  Param, 
-  Query, 
-  Body, 
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Query,
+  Body,
   HttpStatus,
   NotFoundException,
   BadRequestException
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
   ApiParam,
   ApiQuery
 } from '@nestjs/swagger';
@@ -56,18 +56,18 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly multiApiAllocationService: MultiApiAllocationService,
     private readonly geminiKeyPoolService: GeminiKeyPoolService
-  ) {}
+  ) { }
 
   @Get('dashboard/stats')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get admin dashboard statistics',
     description: 'Retrieve comprehensive statistics for the admin dashboard including user, conversation, and message metrics.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Dashboard statistics retrieved successfully',
-    type: AdminDashboardStatsDto 
+    type: AdminDashboardStatsDto
   })
   async getDashboardStats(): Promise<AdminDashboardStatsDto> {
     const [userStats, conversationStats, messageStats] = await Promise.all([
@@ -85,14 +85,14 @@ export class AdminController {
 
   @Get('users')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get all users with pagination',
     description: 'Retrieve a paginated list of all users in the system with their basic information and status.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Users retrieved successfully',
-    type: UsersListResponseDto 
+    type: UsersListResponseDto
   })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (1-based)', example: 1 })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page', example: 10 })
@@ -102,7 +102,7 @@ export class AdminController {
     const offset = (page - 1) * limit;
 
     const { users, total } = await this.databaseService.getAllUsers(limit, offset);
-    
+
     return {
       users: users.map(user => ({
         id: user.id,
@@ -124,20 +124,20 @@ export class AdminController {
 
   @Get('users/:id')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get user details by ID',
     description: 'Retrieve detailed information about a specific user including their activity statistics.'
   })
   @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User details retrieved successfully',
-    type: UserDetailDto 
+    type: UserDetailDto
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserById(@Param('id') id: string): Promise<UserDetailDto> {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -165,14 +165,14 @@ export class AdminController {
 
   @Put('users/:id/role')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Update user role',
     description: 'Change a user\'s role between user and admin. Only admins can perform this action.'
   })
   @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User role updated successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'User role updated successfully'
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'Invalid role specified' })
@@ -181,7 +181,7 @@ export class AdminController {
     @Body() updateRoleDto: UpdateUserRoleDto
   ): Promise<{ message: string; user: any }> {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -202,14 +202,14 @@ export class AdminController {
 
   @Put('users/:id/status')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Toggle user active status',
     description: 'Activate or deactivate a user account. Deactivated users cannot access the system.'
   })
   @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User status updated successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'User status updated successfully'
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   async toggleUserStatus(
@@ -217,7 +217,7 @@ export class AdminController {
     @Body() toggleStatusDto: ToggleUserStatusDto
   ): Promise<{ message: string; user: any }> {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -238,19 +238,19 @@ export class AdminController {
 
   @Delete('users/:id')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Delete user account',
     description: 'Permanently delete a user account and all associated data. This action cannot be undone.'
   })
   @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User deleted successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'User deleted successfully'
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   async deleteUser(@Param('id') id: string): Promise<{ message: string }> {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -268,14 +268,14 @@ export class AdminController {
 
   @Get('conversations')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get all conversations with pagination',
     description: 'Retrieve a paginated list of all conversations in the system with user information.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Conversations retrieved successfully',
-    type: ConversationsListResponseDto 
+    type: ConversationsListResponseDto
   })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (1-based)', example: 1 })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page', example: 10 })
@@ -285,7 +285,7 @@ export class AdminController {
     const offset = (page - 1) * limit;
 
     const { conversations, total } = await this.databaseService.getAllConversations(limit, offset);
-    
+
     return {
       conversations,
       total,
@@ -297,14 +297,14 @@ export class AdminController {
 
   @Get('stats/users')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get detailed user statistics',
     description: 'Retrieve comprehensive user statistics including registration trends and user roles.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User statistics retrieved successfully',
-    type: UserStatsDto 
+    type: UserStatsDto
   })
   async getUserStats(): Promise<UserStatsDto> {
     return this.databaseService.getUserStats();
@@ -312,14 +312,14 @@ export class AdminController {
 
   @Get('stats/conversations')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get conversation statistics',
     description: 'Retrieve statistics about conversations created over different time periods.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Conversation statistics retrieved successfully',
-    type: ConversationStatsDto 
+    type: ConversationStatsDto
   })
   async getConversationStats(): Promise<ConversationStatsDto> {
     return this.databaseService.getConversationStats();
@@ -327,14 +327,14 @@ export class AdminController {
 
   @Get('stats/messages')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get message statistics',
     description: 'Retrieve statistics about messages sent over different time periods.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Message statistics retrieved successfully',
-    type: MessageStatsDto 
+    type: MessageStatsDto
   })
   async getMessageStats(): Promise<MessageStatsDto> {
     return this.databaseService.getMessageStats();
@@ -342,19 +342,19 @@ export class AdminController {
 
   @Get('users/:id/activity')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get user activity details',
     description: 'Retrieve detailed activity information for a specific user.'
   })
   @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User activity retrieved successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'User activity retrieved successfully'
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserActivity(@Param('id') id: string) {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -371,13 +371,13 @@ export class AdminController {
 
   @Get('analytics/system-metrics')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get comprehensive system metrics',
     description: 'Retrieve detailed system health and usage metrics for advanced analytics.'
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'System metrics retrieved successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'System metrics retrieved successfully'
   })
   async getSystemMetrics() {
     return this.adminService.getSystemMetrics();
@@ -385,13 +385,13 @@ export class AdminController {
 
   @Get('analytics/user-engagement')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get user engagement analytics',
     description: 'Retrieve user engagement metrics including DAU, retention, and activity patterns.'
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User engagement metrics retrieved successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'User engagement metrics retrieved successfully'
   })
   async getUserEngagement() {
     return this.adminService.getUserEngagementMetrics();
@@ -399,13 +399,13 @@ export class AdminController {
 
   @Get('analytics/content')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get content and usage analytics',
     description: 'Retrieve analytics about content creation and usage patterns.'
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Content analytics retrieved successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'Content analytics retrieved successfully'
   })
   async getContentAnalytics() {
     return this.adminService.getContentAnalytics();
@@ -413,20 +413,20 @@ export class AdminController {
 
   @Post('users/:id/impersonate')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Generate impersonation token',
     description: 'Generate a temporary token to impersonate a user for support purposes. Use with extreme caution.'
   })
   @ApiParam({ name: 'id', description: 'User ID to impersonate' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Impersonation token generated successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'Impersonation token generated successfully'
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'Cannot impersonate admin users' })
   async generateImpersonationToken(@Param('id') id: string) {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -459,13 +459,13 @@ export class AdminController {
 
   @Get('audit/recent-actions')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get recent admin actions',
     description: 'Retrieve recent administrative actions for audit purposes.'
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Recent actions retrieved successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'Recent actions retrieved successfully'
   })
   async getRecentActions() {
     // In a real implementation, this would query an audit log table
@@ -495,19 +495,19 @@ export class AdminController {
 
   @Get('health')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get system health status',
     description: 'Check the health status of various system components.'
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'System health status retrieved successfully' 
+  @ApiResponse({
+    status: 200,
+    description: 'System health status retrieved successfully'
   })
   async getSystemHealth() {
     try {
       // Test database connectivity
       const userStats = await this.databaseService.getUserStats();
-      
+
       return {
         status: 'healthy',
         timestamp: new Date(),
@@ -551,12 +551,12 @@ export class AdminController {
   // Chart and Analytics Endpoints
   @Get('charts/user-registrations')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get user registration chart data',
     description: 'Retrieve daily user registration counts for the specified time period. Perfect for line charts showing growth trends.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User registration chart data retrieved successfully',
     type: [ChartDataPointDto]
   })
@@ -567,12 +567,12 @@ export class AdminController {
 
   @Get('charts/active-users')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get active users chart data',
     description: 'Retrieve daily active user counts based on last login activity. Shows user engagement over time.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Active users chart data retrieved successfully',
     type: [ChartDataPointDto]
   })
@@ -583,12 +583,12 @@ export class AdminController {
 
   @Get('charts/conversations')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get conversations chart data',
     description: 'Retrieve daily conversation creation counts. Shows platform usage and engagement trends.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Conversations chart data retrieved successfully',
     type: [ChartDataPointDto]
   })
@@ -599,12 +599,12 @@ export class AdminController {
 
   @Get('charts/messages')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get messages chart data',
     description: 'Retrieve daily message counts. Indicates overall platform activity and user engagement.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Messages chart data retrieved successfully',
     type: [ChartDataPointDto]
   })
@@ -615,12 +615,12 @@ export class AdminController {
 
   @Get('charts/user-activity-heatmap')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get user activity heatmap data',
     description: 'Retrieve activity patterns by hour and day of week. Perfect for heatmap visualizations showing when users are most active.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User activity heatmap data retrieved successfully',
     type: [HeatmapDataPointDto]
   })
@@ -630,12 +630,12 @@ export class AdminController {
 
   @Get('charts/user-growth-trend')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get user growth trend data',
     description: 'Retrieve monthly user growth data showing new registrations and cumulative totals. Ideal for growth trend analysis.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User growth trend data retrieved successfully',
     type: [UserGrowthDataPointDto]
   })
@@ -646,12 +646,12 @@ export class AdminController {
 
   @Get('charts/top-active-users')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get top active users',
     description: 'Retrieve most active users ranked by message count and activity. Great for identifying power users and engagement leaders.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Top active users retrieved successfully',
     type: [TopActiveUserDto]
   })
@@ -662,12 +662,12 @@ export class AdminController {
 
   @Get('charts/combined-metrics')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get combined chart metrics',
     description: 'Retrieve multiple chart datasets in a single request for dashboard efficiency. Includes user registrations, active users, conversations, and messages.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Combined chart metrics retrieved successfully'
   })
   @ApiQuery({ name: 'days', required: false, description: 'Number of days to include (default: 30)' })
@@ -703,18 +703,18 @@ export class AdminController {
   // AI Token Quota & Allocation Management Endpoints
   @Get('quota/system-overview')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get system quota overview',
     description: 'Retrieve system-wide AI token quota usage and allocation statistics across all models.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'System quota overview retrieved successfully',
     type: [SystemQuotaOverviewDto]
   })
   async getSystemQuotaOverview(): Promise<SystemQuotaOverviewDto[]> {
     const systemOverview = await this.multiApiAllocationService.getSystemOverview();
-    
+
     return systemOverview.map(overview => ({
       modelName: overview.modelName,
       totalRequestsAvailable: overview.totalRequestsAvailable,
@@ -729,12 +729,12 @@ export class AdminController {
 
   @Get('quota/key-pool-stats')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get API key pool statistics',
     description: 'Retrieve detailed statistics about API key pool utilization, rate limits, and system health.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Key pool statistics retrieved successfully',
     type: KeyPoolStatsDto
   })
@@ -744,12 +744,12 @@ export class AdminController {
 
   @Get('quota/users')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get all user allocations',
     description: 'Retrieve AI token allocation details for all users with pagination support.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User allocations retrieved successfully'
   })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
@@ -760,9 +760,9 @@ export class AdminController {
     @Query('limit') limit?: number,
     @Query('model') model?: string
   ) {
-    const modelName = model || 'gemini-2.5-flash';
+    const modelName = model || 'gemini-2.0-flash';
     const allocations = await this.adminService.getUserAllocations(modelName);
-    
+
     // Apply pagination
     const pageNum = page || 1;
     const limitNum = limit || 10;
@@ -781,27 +781,27 @@ export class AdminController {
 
   @Get('quota/users/:id')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get user quota usage details',
     description: 'Retrieve detailed AI token quota usage for a specific user across all models and time periods.'
   })
   @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User quota details retrieved successfully',
     type: UserQuotaUsageDto
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserQuotaDetails(@Param('id') id: string): Promise<UserQuotaUsageDto> {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     // Get allocation details for the default model
     try {
-      const allocation = await this.multiApiAllocationService.getDailyAllocation(id, 'gemini-2.5-flash');
+      const allocation = await this.multiApiAllocationService.getDailyAllocation(id, 'gemini-2.0-flash');
       const activity = await this.databaseService.getUserActivity(id);
 
       // Calculate quota status
@@ -826,7 +826,7 @@ export class AdminController {
         requestsToday: allocation.requestsUsedToday,
         requestsThisWeek: allocation.requestsUsedToday * 7, // Placeholder - would need proper tracking
         requestsThisMonth: allocation.requestsUsedToday * 30, // Placeholder
-        mostUsedModel: 'gemini-2.5-flash', // Placeholder
+        mostUsedModel: 'gemini-2.0-flash', // Placeholder
         avgRequestsPerDay: allocation.requestsUsedToday,
         lastActivity: activity.lastActive || new Date(),
         quotaStatus
@@ -845,7 +845,7 @@ export class AdminController {
         requestsToday: 0,
         requestsThisWeek: 0,
         requestsThisMonth: 0,
-        mostUsedModel: 'gemini-2.5-flash',
+        mostUsedModel: 'gemini-2.0-flash',
         avgRequestsPerDay: 0,
         lastActivity: new Date(),
         quotaStatus: 'UNDER_LIMIT'
@@ -855,12 +855,12 @@ export class AdminController {
 
   @Get('quota/usage-trends')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get quota usage trends',
     description: 'Retrieve AI token usage trends over time for system-wide analysis and capacity planning.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Usage trends retrieved successfully'
   })
   @ApiQuery({ name: 'days', required: false, description: 'Number of days to include (default: 30)' })
@@ -872,7 +872,7 @@ export class AdminController {
     // This would ideally pull from a usage tracking table
     // For now, return mock data structure
     const days = timeQuery.days || 30;
-    const model = modelQuery.model || 'gemini-2.5-flash';
+    const model = modelQuery.model || 'gemini-2.0-flash';
 
     // Get system overview for current usage
     const systemOverview = await this.multiApiAllocationService.getSystemOverview();
@@ -890,7 +890,7 @@ export class AdminController {
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      
+
       trendData.push({
         date: date.toISOString().split('T')[0],
         totalRequests: Math.floor(Math.random() * (modelData?.totalRequestsUsed || 1000)),
@@ -920,13 +920,13 @@ export class AdminController {
 
   @Post('quota/users/:id/adjust')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Adjust user allocation',
     description: 'Manually adjust a user\'s daily AI token allocation for a specific model. Use with caution.'
   })
   @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User allocation adjusted successfully'
   })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -936,7 +936,7 @@ export class AdminController {
     @Body() allocationDto: AllocationManagementDto
   ) {
     const user = await this.databaseService.getUserById(id);
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -969,12 +969,12 @@ export class AdminController {
 
   @Get('quota/alerts')
   @AdminOnly()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get quota alerts and warnings',
     description: 'Retrieve current quota alerts for users approaching or exceeding their allocation limits.'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Quota alerts retrieved successfully'
   })
   async getQuotaAlerts() {
@@ -994,8 +994,8 @@ export class AdminController {
 
     for (const user of users.filter(u => u.is_active)) {
       try {
-        const allocation = await this.multiApiAllocationService.getDailyAllocation(user.id, 'gemini-2.5-flash');
-        
+        const allocation = await this.multiApiAllocationService.getDailyAllocation(user.id, 'gemini-2.0-flash');
+
         if (allocation.warningLevel === 'HIGH' || allocation.warningLevel === 'CRITICAL') {
           alerts.push({
             userId: user.id,
@@ -1018,8 +1018,8 @@ export class AdminController {
     // Sort by alert level and usage percentage
     alerts.sort((a, b) => {
       const levelPriority = { 'CRITICAL': 3, 'HIGH': 2, 'MEDIUM': 1, 'LOW': 0 };
-      return levelPriority[b.alertLevel] - levelPriority[a.alertLevel] || 
-             b.usagePercentage - a.usagePercentage;
+      return levelPriority[b.alertLevel] - levelPriority[a.alertLevel] ||
+        b.usagePercentage - a.usagePercentage;
     });
 
     return {
