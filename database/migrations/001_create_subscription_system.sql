@@ -1,6 +1,6 @@
 -- Migration: Create Simple 2-Tier Subscription System
 -- Date: 2025-01-23
--- Description: Creates tables for Free (20 messages/day) and Pro (100 messages/day) tiers
+-- Description: Creates tables for Free (10 messages/day) and Pro (100 messages/day) tiers
 
 -- Create subscription tiers table
 CREATE TABLE subscription_tiers (
@@ -8,7 +8,7 @@ CREATE TABLE subscription_tiers (
   name VARCHAR(50) NOT NULL UNIQUE, -- 'free' or 'pro'
   display_name VARCHAR(100) NOT NULL, -- 'Free' or 'Pro'
   price_ngn DECIMAL(12,2) NOT NULL DEFAULT 0, -- Monthly price in Naira
-  daily_message_limit INTEGER NOT NULL DEFAULT 20, -- Messages per day
+  daily_message_limit INTEGER NOT NULL DEFAULT 10, -- Messages per day
   description TEXT,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -86,7 +86,7 @@ ALTER TABLE users ADD COLUMN subscription_tier_id UUID REFERENCES subscription_t
 
 -- Insert default tiers
 INSERT INTO subscription_tiers (name, display_name, price_ngn, daily_message_limit, description) VALUES
-('free', 'Free', 0, 20, 'Free tier with 20 messages per day'),
+('free', 'Free', 0, 10, 'Free tier with 10 messages per day'),
 ('pro', 'Pro', 3000, 100, 'Pro tier with 100 messages per day for ₦3,000/month');
 
 -- Set all existing users to free tier by default
@@ -156,7 +156,7 @@ BEGIN
   
   IF user_tier IS NULL THEN
     -- Default to free tier if no subscription found
-    user_tier.daily_limit := 20;
+    user_tier.daily_limit := 10;
   END IF;
   
   -- Get today's usage

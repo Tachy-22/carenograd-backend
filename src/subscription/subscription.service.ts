@@ -95,8 +95,8 @@ export class SubscriptionService {
       return {
         can_send_message: true,
         messages_used: 0,
-        daily_limit: 20,
-        messages_remaining: 20
+        daily_limit: 10,
+        messages_remaining: 10
       };
     }
 

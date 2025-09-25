@@ -70,7 +70,7 @@ BEGIN
     
     IF user_tier IS NULL THEN
       -- Fallback if no tiers exist yet
-      user_tier.tier_daily_limit := 20;
+      user_tier.tier_daily_limit := 10;
     END IF;
   END IF;
   

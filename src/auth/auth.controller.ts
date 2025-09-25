@@ -177,7 +177,7 @@ export class AuthController {
       is_active: user.is_active,
       last_login_at: user.last_login_at,
       subscription_tier: subscriptionInfo?.name || 'free',
-      daily_message_limit: subscriptionInfo?.daily_message_limit || 20,
+      daily_message_limit: subscriptionInfo?.daily_message_limit || 10,
       created_at: user.created_at,
     };
   }
