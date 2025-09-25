@@ -140,10 +140,21 @@ export class SubscriptionService {
       currency: 'NGN'
     };
 
-    const result = await this.paystackClient.plan.create(planData);
+    this.logger.log(`Creating Paystack plan: ${JSON.stringify(planData)}`);
+
+    let result;
+    try {
+      result = await this.paystackClient.plan.create(planData);
+      this.logger.log(`Paystack plan creation response: ${JSON.stringify(result)}`);
+    } catch (error) {
+      this.logger.error('Paystack plan creation failed:', error);
+      this.logger.error('Error details:', error.response?.data || error.message);
+      throw new BadRequestException(`Paystack plan creation failed: ${error.response?.data?.message || error.message}`);
+    }
 
     if (!result.status) {
-      throw new BadRequestException('Failed to create subscription plan in Paystack');
+      this.logger.error('Paystack plan creation returned false status:', result);
+      throw new BadRequestException(`Failed to create subscription plan in Paystack: ${result.message || 'Unknown error'}`);
     }
 
     // Save plan code to our database
@@ -193,28 +204,44 @@ export class SubscriptionService {
     const reference = `sub_${userId}_${Date.now()}`;
 
     // Create customer on Paystack if not exists
-    let customer;
+    const customerData = {
+      email: user.email,
+      first_name: user.name.split(' ')[0] || 'User',
+      last_name: user.name.split(' ').slice(1).join(' ') || '',
+      phone: '', // Optional
+      metadata: {
+        user_id: userId,
+        tier_name: tierName
+      }
+    };
+
+    this.logger.log(`Creating Paystack customer: ${JSON.stringify(customerData)}`);
+
+    let customer: any;
     try {
-      customer = await this.paystackClient.customer.create({
-        email: user.email,
-        first_name: user.name.split(' ')[0] || 'User',
-        last_name: user.name.split(' ').slice(1).join(' ') || '',
-        phone: '', // Optional
-        metadata: {
-          user_id: userId,
-          tier_name: tierName
-        }
-      });
+      customer = await this.paystackClient.customer.create(customerData);
+      this.logger.log(`Paystack customer creation response: ${JSON.stringify(customer)}`);
     } catch (error) {
-      // Customer might already exist
-      const customers = await this.paystackClient.customer.list({
-        email: user.email
-      });
+      this.logger.warn('Paystack customer creation failed, checking if customer exists:', error.response?.data || error.message);
       
-      if (customers.status && customers.data.length > 0) {
-        customer = { data: customers.data[0] };
-      } else {
-        throw error;
+      // Customer might already exist
+      try {
+        const customers = await this.paystackClient.customer.list({
+          email: user.email
+        });
+        
+        this.logger.log(`Paystack customer list response: ${JSON.stringify(customers)}`);
+        
+        if (customers.status && customers.data.length > 0) {
+          customer = { data: customers.data[0] };
+          this.logger.log(`Found existing customer: ${customer.data.customer_code}`);
+        } else {
+          this.logger.error('Customer does not exist and creation failed');
+          throw new BadRequestException(`Customer creation failed: ${error.response?.data?.message || error.message}`);
+        }
+      } catch (listError) {
+        this.logger.error('Failed to list customers:', listError.response?.data || listError.message);
+        throw new BadRequestException(`Customer creation and lookup failed: ${listError.response?.data?.message || listError.message}`);
       }
     }
 
@@ -235,10 +262,21 @@ export class SubscriptionService {
       }
     };
 
-    const result = await this.paystackClient.transaction.initialize(paymentData);
+    this.logger.log(`Initializing Paystack payment: ${JSON.stringify(paymentData)}`);
+
+    let result: any;
+    try {
+      result = await this.paystackClient.transaction.initialize(paymentData);
+      this.logger.log(`Paystack payment initialization response: ${JSON.stringify(result)}`);
+    } catch (error) {
+      this.logger.error('Paystack payment initialization failed:', error);
+      this.logger.error('Error details:', error.response?.data || error.message);
+      throw new BadRequestException(`Payment initialization failed: ${error.response?.data?.message || error.message}`);
+    }
 
     if (!result.status) {
-      throw new BadRequestException('Failed to initialize subscription payment');
+      this.logger.error('Paystack payment initialization returned false status:', result);
+      throw new BadRequestException(`Failed to initialize subscription payment: ${result.message || 'Unknown error'}`);
     }
 
     // Save transaction record
