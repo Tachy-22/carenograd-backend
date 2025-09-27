@@ -47,6 +47,27 @@ import {
   AllocationManagementDto,
   ModelQueryDto
 } from './dto/admin.dto';
+import { SubscriberService } from '../email/services/subscriber.service';
+import { EmailCampaignService } from '../email/services/email-campaign.service';
+import {
+  CreateSubscriberDto,
+  UpdateSubscriberDto,
+  SubscriberResponseDto,
+  SubscriberListQueryDto,
+  SubscriberListResponseDto,
+  BulkImportSubscribersDto,
+  BulkImportResponseDto,
+  CreateEmailCampaignDto,
+  UpdateEmailCampaignDto,
+  EmailCampaignResponseDto,
+  CampaignListQueryDto,
+  CampaignListResponseDto,
+  EmailLogResponseDto,
+  PreviewCampaignDto,
+  PreviewCampaignResponseDto,
+  UnsubscribeDto,
+  UnsubscribeResponseDto
+} from '../email/dto/email.dto';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -55,7 +76,9 @@ export class AdminController {
     private readonly databaseService: DatabaseService,
     private readonly adminService: AdminService,
     private readonly multiApiAllocationService: MultiApiAllocationService,
-    private readonly geminiKeyPoolService: GeminiKeyPoolService
+    private readonly geminiKeyPoolService: GeminiKeyPoolService,
+    private readonly subscriberService: SubscriberService,
+    private readonly emailCampaignService: EmailCampaignService
   ) { }
 
   @Get('dashboard/stats')
@@ -1030,6 +1053,201 @@ export class AdminController {
         highAlerts: alerts.filter(a => a.alertLevel === 'HIGH').length,
         usersOverLimit: alerts.filter(a => !a.canMakeRequest).length
       }
+    };
+  }
+
+  // ========================
+  // SUBSCRIBER MANAGEMENT
+  // ========================
+
+  @Get('subscribers')
+  @AdminOnly()
+  @ApiOperation({ summary: 'List all subscribers with filtering and pagination' })
+  @ApiResponse({ status: 200, type: SubscriberListResponseDto })
+  async listSubscribers(@Query() query: SubscriberListQueryDto): Promise<SubscriberListResponseDto> {
+    return this.subscriberService.listSubscribers(query);
+  }
+
+  @Get('subscribers/stats')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Get subscriber statistics' })
+  @ApiResponse({ status: 200, description: 'Subscriber statistics' })
+  async getSubscriberStats(): Promise<{
+    total: number;
+    active: number;
+    unsubscribed: number;
+    bounced: number;
+    by_source: Record<string, number>;
+  }> {
+    return this.subscriberService.getSubscriberStats();
+  }
+
+  @Get('subscribers/sync')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Sync existing users to subscribers' })
+  @ApiResponse({ status: 200, description: 'Users synced successfully' })
+  async syncUsersToSubscribers(): Promise<{ synced_count: number }> {
+    const syncedCount = await this.subscriberService.syncUsersToSubscribers();
+    return { synced_count: syncedCount };
+  }
+
+  @Get('subscribers/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Get subscriber by ID' })
+  @ApiResponse({ status: 200, type: SubscriberResponseDto })
+  @ApiResponse({ status: 404, description: 'Subscriber not found' })
+  async getSubscriber(@Param('id') id: string): Promise<SubscriberResponseDto> {
+    return this.subscriberService.getSubscriberById(id);
+  }
+
+  @Post('subscribers')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Create a new subscriber' })
+  @ApiResponse({ status: 201, type: SubscriberResponseDto })
+  @ApiResponse({ status: 409, description: 'Subscriber already exists' })
+  async createSubscriber(@Body() createDto: CreateSubscriberDto): Promise<SubscriberResponseDto> {
+    return this.subscriberService.createSubscriber(createDto);
+  }
+
+  @Post('subscribers/bulk-import')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Bulk import subscribers' })
+  @ApiResponse({ status: 200, type: BulkImportResponseDto })
+  async bulkImportSubscribers(@Body() importDto: BulkImportSubscribersDto): Promise<BulkImportResponseDto> {
+    return this.subscriberService.bulkImportSubscribers(importDto);
+  }
+
+  @Put('subscribers/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Update subscriber' })
+  @ApiResponse({ status: 200, type: SubscriberResponseDto })
+  @ApiResponse({ status: 404, description: 'Subscriber not found' })
+  async updateSubscriber(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateSubscriberDto
+  ): Promise<SubscriberResponseDto> {
+    return this.subscriberService.updateSubscriber(id, updateDto);
+  }
+
+  @Delete('subscribers/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Delete subscriber' })
+  @ApiResponse({ status: 200, description: 'Subscriber deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Subscriber not found' })
+  async deleteSubscriber(@Param('id') id: string): Promise<{ message: string }> {
+    await this.subscriberService.deleteSubscriber(id);
+    return { message: 'Subscriber deleted successfully' };
+  }
+
+  // ========================
+  // EMAIL CAMPAIGN MANAGEMENT
+  // ========================
+
+  @Get('campaigns')
+  @AdminOnly()
+  @ApiOperation({ summary: 'List all email campaigns with filtering and pagination' })
+  @ApiResponse({ status: 200, type: CampaignListResponseDto })
+  async listCampaigns(@Query() query: CampaignListQueryDto): Promise<CampaignListResponseDto> {
+    return this.emailCampaignService.listCampaigns(query);
+  }
+
+  @Get('campaigns/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Get campaign by ID' })
+  @ApiResponse({ status: 200, type: EmailCampaignResponseDto })
+  @ApiResponse({ status: 404, description: 'Campaign not found' })
+  async getCampaign(@Param('id') id: string): Promise<EmailCampaignResponseDto> {
+    return this.emailCampaignService.getCampaignById(id);
+  }
+
+  @Get('campaigns/:id/logs')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Get campaign email logs' })
+  @ApiResponse({ status: 200, description: 'Campaign email logs' })
+  async getCampaignLogs(
+    @Param('id') id: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20
+  ): Promise<{
+    logs: EmailLogResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return this.emailCampaignService.getCampaignLogs(id, page, limit);
+  }
+
+  @Post('campaigns')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Create a new email campaign' })
+  @ApiResponse({ status: 201, type: EmailCampaignResponseDto })
+  async createCampaign(
+    @Body() createDto: CreateEmailCampaignDto
+  ): Promise<EmailCampaignResponseDto> {
+    // For admin endpoints, we'll use null since created_by is optional
+    return this.emailCampaignService.createCampaign(createDto, null);
+  }
+
+  @Post('campaigns/:id/preview')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Preview campaign with sample data' })
+  @ApiResponse({ status: 200, type: PreviewCampaignResponseDto })
+  @ApiResponse({ status: 404, description: 'Campaign not found' })
+  async previewCampaign(
+    @Param('id') id: string,
+    @Body() previewDto: PreviewCampaignDto
+  ): Promise<PreviewCampaignResponseDto> {
+    return this.emailCampaignService.previewCampaign(id, previewDto);
+  }
+
+  @Post('campaigns/:id/send')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Send campaign immediately' })
+  @ApiResponse({ status: 200, description: 'Campaign sending started' })
+  @ApiResponse({ status: 400, description: 'Campaign cannot be sent' })
+  async sendCampaign(@Param('id') id: string): Promise<{ message: string; total_recipients: number }> {
+    return this.emailCampaignService.sendCampaign(id);
+  }
+
+  @Put('campaigns/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Update campaign' })
+  @ApiResponse({ status: 200, type: EmailCampaignResponseDto })
+  @ApiResponse({ status: 404, description: 'Campaign not found' })
+  @ApiResponse({ status: 400, description: 'Campaign cannot be updated' })
+  async updateCampaign(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateEmailCampaignDto
+  ): Promise<EmailCampaignResponseDto> {
+    return this.emailCampaignService.updateCampaign(id, updateDto);
+  }
+
+  @Delete('campaigns/:id')
+  @AdminOnly()
+  @ApiOperation({ summary: 'Delete campaign' })
+  @ApiResponse({ status: 200, description: 'Campaign deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Campaign not found' })
+  @ApiResponse({ status: 400, description: 'Campaign cannot be deleted' })
+  async deleteCampaign(@Param('id') id: string): Promise<{ message: string }> {
+    await this.emailCampaignService.deleteCampaign(id);
+    return { message: 'Campaign deleted successfully' };
+  }
+
+  // ========================
+  // UNSUBSCRIBE ENDPOINT (Public)
+  // ========================
+
+  @Post('unsubscribe')
+  @ApiOperation({ summary: 'Unsubscribe via token (public endpoint)' })
+  @ApiResponse({ status: 200, type: UnsubscribeResponseDto })
+  @ApiResponse({ status: 404, description: 'Invalid unsubscribe token' })
+  async unsubscribe(@Body() unsubscribeDto: UnsubscribeDto): Promise<UnsubscribeResponseDto> {
+    const subscriber = await this.subscriberService.unsubscribeByToken(unsubscribeDto.token);
+    return {
+      success: true,
+      email: subscriber.email,
+      message: 'You have been successfully unsubscribed from our emails.'
     };
   }
 }
