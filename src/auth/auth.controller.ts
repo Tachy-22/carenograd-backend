@@ -23,14 +23,14 @@ export class AuthController {
   @ApiResponse({ status: 302, description: 'Redirects to Google OAuth consent screen' })
   async googleLogin(@Res() res: Response) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL 
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL
 
     const scopes = [
       'email',
       'profile',
       'https://www.googleapis.com/auth/spreadsheets',
-      'https://www.googleapis.com/auth/documents',
-      'https://www.googleapis.com/auth/gmail.modify',
+     // 'https://www.googleapis.com/auth/documents',
+      'https://www.googleapis.com/auth/gmail.compose',
       'https://www.googleapis.com/auth/drive.file'
     ].join(' ');
 
@@ -54,14 +54,14 @@ export class AuthController {
   })
   async getDebugOAuthUrl() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL 
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL
 
     const scopes = [
       'email',
       'profile',
       'https://www.googleapis.com/auth/spreadsheets',
-      'https://www.googleapis.com/auth/documents',
-      'https://www.googleapis.com/auth/gmail.modify',
+    //  'https://www.googleapis.com/auth/documents',
+      'https://www.googleapis.com/auth/gmail.compose',
       'https://www.googleapis.com/auth/drive.file'
     ].join(' ');
 
@@ -141,7 +141,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid or missing JWT token' })
   async getProfile(@Req() req: AuthenticatedRequest) {
     const user = req.user;
-    
+
     // Get user's subscription tier information
     let subscriptionInfo: { name?: string; display_name?: string; daily_message_limit?: number } | null = null;
     try {
@@ -157,7 +157,7 @@ export class AuthController {
         `)
         .eq('id', user.id)
         .single();
-      
+
       if (data && data.subscription_tiers) {
         const tierData = data.subscription_tiers as { name: string; display_name: string; daily_message_limit: number }[];
         if (tierData && tierData.length > 0) {
